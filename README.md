@@ -2,7 +2,7 @@
 
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-000000?logo=unity&logoColor=white)](https://unity.com)
 [![UPM](https://img.shields.io/badge/UPM-com.nekuzaky.gittools-2C7BE5)](https://docs.unity3d.com/Manual/upm-ui-giturl.html)
-[![Version](https://img.shields.io/badge/version-0.3.0-2C7BE5)](Packages/com.nekuzaky.gittools/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.4.0-2C7BE5)](Packages/com.nekuzaky.gittools/CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-3DA639)](Packages/com.nekuzaky.gittools/LICENSE.md)
 [![Last commit](https://img.shields.io/github/last-commit/Nekuzaky/git-unity)](https://github.com/Nekuzaky/git-unity/commits/main)
 [![Stars](https://img.shields.io/github/stars/Nekuzaky/git-unity?style=flat)](https://github.com/Nekuzaky/git-unity/stargazers)
@@ -40,6 +40,10 @@ or drop a stash.
 **Merge conflicts.** A banner appears while a merge is unresolved, with a one-click call to
 UnityYAMLMerge, per-file "Resolved" buttons and an abort button.
 
+**Dark by default.** The window ships its own palette rather than inheriting the editor
+skin, with a toolbar toggle for a light one. Icons are Unicode symbols drawn through a
+symbol-capable font chain, not colour emoji, which Unity's IMGUI cannot render.
+
 **Transparency.** Every command that runs and its raw output land in a console pane at the
 bottom of the window. Nothing is a black box.
 
@@ -63,7 +67,7 @@ Or add it straight to `Packages/manifest.json`:
 }
 ```
 
-Pin a release by appending a tag, for example `#v0.3.0`.
+Pin a release by appending a tag, for example `#v0.4.0`.
 
 ### Requirements
 
@@ -110,7 +114,7 @@ Roughly 2 000 lines of editor C#, no third-party dependency.
 | `GitRepository.cs` | Branches, remotes, tags and stashes, loaded as one batch |
 | `GitDashboardWindow.cs` | The window: layout, graph rendering, all commands |
 | `GitDiffView.cs` | Colourised, virtualised diff renderer |
-| `GitStyles.cs` | Colours and styles, light and dark skin |
+| `GitStyles.cs` | Palette, styles and the `GitIcons` glyph set; owns the dark and light themes |
 | `GitPromptWindow.cs` | Small modal text prompt for branch, tag and stash names |
 
 A few deliberate choices worth knowing about:

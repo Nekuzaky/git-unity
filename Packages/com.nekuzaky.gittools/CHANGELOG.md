@@ -4,6 +4,33 @@ All notable changes to this package are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-09-08
+
+### Added
+
+- Dedicated dark theme, on by default: the window paints its own Fork-like palette instead
+  of inheriting the editor skin. A toolbar toggle switches back to a light palette, and the
+  choice is remembered per user.
+- Unicode glyphs throughout: toolbar actions, sidebar sections, branch, remote, tag and
+  stash markers, ahead/behind counters, fold arrows. All of them are declared in `GitIcons`
+  and can be swapped in one place.
+- Letter badges (A/M/D/R/U) on file rows, replacing the coloured dots.
+- Accent bar on the selected row.
+
+### Changed
+
+- Glyph-bearing labels are rendered through a symbol-capable font chain rather than the
+  editor font. On Windows the editor font resolves to Segoe UI, which covers only 7 of the
+  20 glyphs used; the other 13 would have rendered as empty boxes.
+- Colour palette reworked around a single set of named tokens, including per-status colours.
+
+### Note
+
+Colour emoji are deliberately not used: Unity's IMGUI draws text with a dynamic font that
+has no COLR/CBDT support, so they render as blank boxes. The glyphs chosen are BMP symbols
+verified as present in the fallback fonts.
+
+
 ## [0.3.0] - 2026-09-08
 
 ### Changed

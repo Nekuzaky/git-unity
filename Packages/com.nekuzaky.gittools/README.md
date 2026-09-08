@@ -19,7 +19,7 @@ https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools
 To pin a version, append a revision:
 
 ```
-https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools#v0.3.0
+https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools#v0.4.0
 ```
 
 ### From `manifest.json`
@@ -51,7 +51,7 @@ The window is split into three resizable panes; their sizes are remembered betwe
 
 | Pane | Contents |
 | --- | --- |
-| Toolbar | Refresh, Fetch, Pull, Push, branch creation, Stash menu, search filter, history depth |
+| Toolbar | Refresh, Fetch, Pull, Push, branch creation, Stash menu, dark-theme toggle, search filter, history depth |
 | Sidebar | Current branch and its tracking state, pending changes, local branches (with ahead/behind counters), remote branches, tags, stashes |
 | Graph | History with coloured lanes, filled nodes for commits and hollow ones for merges, branch and tag badges, author, relative date, SHA |
 | Detail | Files of the selected commit, or the staging area when the "Uncommitted changes" row is selected |
@@ -91,6 +91,18 @@ Replace `<Unity>` with your installation path, for example
 
 Also check in `Project Settings > Editor` that **Asset Serialization** is set to
 **Force Text**: without it scenes are binary and no tool can merge them.
+
+## Theme and icons
+
+The window paints its own dark palette by default rather than following the editor skin, so
+it reads like a dedicated Git client. The toggle in the toolbar switches to a light palette;
+the choice is stored per user.
+
+Icons are Unicode symbols, not colour emoji. Unity's IMGUI draws text through a dynamic font
+with no COLR/CBDT support, so emoji render as blank boxes. Every glyph is declared in
+`GitIcons` and drawn with a symbol-capable font chain (Segoe UI Symbol first on Windows),
+because the editor font alone covers only a third of them. Change a glyph there and the
+whole UI follows.
 
 ## Design notes
 

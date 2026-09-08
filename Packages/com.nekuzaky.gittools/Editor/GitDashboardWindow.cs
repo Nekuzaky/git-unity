@@ -21,11 +21,11 @@ namespace GitTools.EditorTools
             {
                 switch (Status)
                 {
-                    case 'A': return GitStyles.LocalBranchBadge;
-                    case 'D': return new Color(0.85f, 0.35f, 0.35f);
-                    case 'R': return GitStyles.RemoteBranchBadge;
-                    case 'U': return new Color(0.92f, 0.45f, 0.20f);
-                    default: return GitStyles.HeadBadge;
+                    case 'A': return GitStyles.StatusAdded;
+                    case 'D': return GitStyles.StatusDeleted;
+                    case 'R': return GitStyles.StatusRenamed;
+                    case 'U': return GitStyles.StatusConflict;
+                    default: return GitStyles.StatusModified;
                 }
             }
         }
@@ -453,6 +453,8 @@ namespace GitTools.EditorTools
                 ReloadAll();
             }
 
+            EditorGUI.DrawRect(new Rect(0f, 0f, position.width, position.height), GitStyles.WindowBackground);
+
             var toolbar = new Rect(0f, 0f, position.width, Toolbar);
             DrawToolbar(toolbar);
 
@@ -524,20 +526,20 @@ namespace GitTools.EditorTools
             {
                 using (new EditorGUI.DisabledScope(GitRunner.IsBusy))
                 {
-                    if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(76f))) ReloadAll();
-                    if (GUILayout.Button("Fetch", EditorStyles.toolbarButton, GUILayout.Width(48f))) Execute("fetch --all --prune");
-                    if (GUILayout.Button("Pull", EditorStyles.toolbarButton, GUILayout.Width(44f))) Execute("pull --rebase=false", true);
-                    if (GUILayout.Button("Push", EditorStyles.toolbarButton, GUILayout.Width(44f))) Execute(BuildPushCommand());
+                    if (GUILayout.Button(GitIcons.Refresh + "  Refresh", GitStyles.ToolbarButton, GUILayout.Width(82f))) ReloadAll();
+                    if (GUILayout.Button(GitIcons.Fetch + "  Fetch", GitStyles.ToolbarButton, GUILayout.Width(62f))) Execute("fetch --all --prune");
+                    if (GUILayout.Button(GitIcons.Pull + "  Pull", GitStyles.ToolbarButton, GUILayout.Width(56f))) Execute("pull --rebase=false", true);
+                    if (GUILayout.Button(GitIcons.Push + "  Push", GitStyles.ToolbarButton, GUILayout.Width(56f))) Execute(BuildPushCommand());
 
                     GUILayout.Space(8f);
 
-                    if (GUILayout.Button("Branch", EditorStyles.toolbarButton, GUILayout.Width(62f)))
+                    if (GUILayout.Button(GitIcons.Branch + "  Branch", GitStyles.ToolbarButton, GUILayout.Width(74f)))
                     {
                         GitPromptWindow.Show("New branch", "Name", "", "Create and switch",
                             name => Execute("checkout -b " + GitRunner.Quote(name), true));
                     }
 
-                    if (GUILayout.Button("Stash", EditorStyles.toolbarButton, GUILayout.Width(48f)))
+                    if (GUILayout.Button(GitIcons.Stash + "  Stash", GitStyles.ToolbarButton, GUILayout.Width(64f)))
                         ShowStashMenu();
                 }
 
@@ -548,6 +550,11 @@ namespace GitTools.EditorTools
                     GUILayout.Label("git...", EditorStyles.toolbarButton, GUILayout.Width(40f));
                     Repaint();
                 }
+
+                var dark = GUILayout.Toggle(GitStyles.Dark,
+                    new GUIContent(GitIcons.Theme, "Dark theme: draw the window with its own palette instead of the editor skin."),
+                    GitStyles.ToolbarButton, GUILayout.Width(26f));
+                if (dark != GitStyles.Dark) GitStyles.Dark = dark;
 
                 EditorGUI.BeginChangeCheck();
                 m_AllBranches = GUILayout.Toggle(m_AllBranches, "All branches", EditorStyles.toolbarButton, GUILayout.Width(122f));
@@ -575,8 +582,8 @@ namespace GitTools.EditorTools
 
             var trackLabel = new Rect(header.x + 6f, header.y + 17f, header.width - 12f, 14f);
             var summary = m_Status.Upstream ?? "no upstream";
-            if (m_Status.Ahead > 0) summary += "   ^" + m_Status.Ahead;
-            if (m_Status.Behind > 0) summary += "   v" + m_Status.Behind;
+            if (m_Status.Ahead > 0) summary += "   " + GitIcons.Ahead + m_Status.Ahead;
+            if (m_Status.Behind > 0) summary += "   " + GitIcons.Behind + m_Status.Behind;
             GUI.Label(trackLabel, summary, GitStyles.MonoSmall);
 
             var content = new Rect(rect.x, header.yMax, rect.width, rect.height - header.height);
@@ -586,26 +593,26 @@ namespace GitTools.EditorTools
             m_SidebarScroll = GUI.BeginScrollView(content, m_SidebarScroll, view);
             float y = 4f;
 
-            DrawSidebarSection("Changes", view.width, ref y, () =>
+            DrawSidebarSection(GitIcons.Changes + "  Changes", view.width, ref y, () =>
             {
                 var count = m_Status.Changes.Count;
                 var label = count == 0 ? "No changes" : count + " changed file(s)";
                 var row = NextRow(view.width, ref y);
-                if (DrawSidebarRow(row, label, 1, m_WorkingTreeSelected, GitStyles.HeadBadge))
+                if (DrawSidebarRow(row, label, 1, m_WorkingTreeSelected, GitStyles.HeadBadge, false, GitIcons.Changes))
                     SelectWorkingTree();
             });
 
-            DrawSidebarSection("Local branches (" + m_Repo.LocalBranches.Count + ")", view.width, ref y, () =>
+            DrawSidebarSection(GitIcons.Branch + "  Local branches (" + m_Repo.LocalBranches.Count + ")", view.width, ref y, () =>
             {
                 foreach (var branch in m_Repo.LocalBranches)
                 {
                     var row = NextRow(view.width, ref y);
                     var label = branch.Name;
                     if (branch.Ahead > 0 || branch.Behind > 0)
-                        label += "   " + (branch.Ahead > 0 ? "^" + branch.Ahead + " " : "") + (branch.Behind > 0 ? "v" + branch.Behind : "");
+                        label += "   " + (branch.Ahead > 0 ? GitIcons.Ahead + branch.Ahead.ToString() + " " : "") + (branch.Behind > 0 ? GitIcons.Behind + branch.Behind.ToString() : "");
 
                     var color = branch.IsCurrent ? GitStyles.HeadBadge : GitStyles.LocalBranchBadge;
-                    if (DrawSidebarRow(row, label, 1, false, color, branch.IsCurrent))
+                    if (DrawSidebarRow(row, label, 1, false, color, branch.IsCurrent, branch.IsCurrent ? GitIcons.Current : GitIcons.Other))
                     {
                         if (Event.current.clickCount == 2 && !branch.IsCurrent) Checkout(branch.Name);
                         else FocusBranch(branch.Name);
@@ -615,12 +622,12 @@ namespace GitTools.EditorTools
                 }
             });
 
-            DrawSidebarSection("Remote branches (" + m_Repo.RemoteBranches.Count + ")", view.width, ref y, () =>
+            DrawSidebarSection(GitIcons.Remote + "  Remote branches (" + m_Repo.RemoteBranches.Count + ")", view.width, ref y, () =>
             {
                 foreach (var remote in m_Repo.RemoteBranches)
                 {
                     var row = NextRow(view.width, ref y);
-                    if (DrawSidebarRow(row, remote, 1, false, GitStyles.RemoteBranchBadge))
+                    if (DrawSidebarRow(row, remote, 1, false, GitStyles.RemoteBranchBadge, false, GitIcons.Remote))
                     {
                         if (Event.current.clickCount == 2) CheckoutRemote(remote);
                         else FocusBranch(remote);
@@ -631,12 +638,12 @@ namespace GitTools.EditorTools
                 }
             });
 
-            DrawSidebarSection("Tags (" + m_Repo.Tags.Count + ")", view.width, ref y, () =>
+            DrawSidebarSection(GitIcons.Tag + "  Tags (" + m_Repo.Tags.Count + ")", view.width, ref y, () =>
             {
                 foreach (var tag in m_Repo.Tags)
                 {
                     var row = NextRow(view.width, ref y);
-                    if (DrawSidebarRow(row, tag, 1, false, GitStyles.TagBadge)) FocusBranch(tag);
+                    if (DrawSidebarRow(row, tag, 1, false, GitStyles.TagBadge, false, GitIcons.Tag)) FocusBranch(tag);
 
                     var captured = tag;
                     HandleContext(row, () =>
@@ -649,12 +656,12 @@ namespace GitTools.EditorTools
                 }
             });
 
-            DrawSidebarSection("Stashes (" + m_Repo.Stashes.Count + ")", view.width, ref y, () =>
+            DrawSidebarSection(GitIcons.Stash + "  Stashes (" + m_Repo.Stashes.Count + ")", view.width, ref y, () =>
             {
                 foreach (var stash in m_Repo.Stashes)
                 {
                     var row = NextRow(view.width, ref y);
-                    DrawSidebarRow(row, stash.Selector + "  " + stash.Description, 1, false, GitStyles.StashBadge);
+                    DrawSidebarRow(row, stash.Selector + "  " + stash.Description, 1, false, GitStyles.StashBadge, false, GitIcons.Stash);
 
                     var captured = stash;
                     HandleContext(row, () =>
@@ -693,7 +700,7 @@ namespace GitTools.EditorTools
             var header = new Rect(0f, cursor, width, SidebarRow);
 
             var collapsed = m_CollapsedSections.Contains(key);
-            if (GUI.Button(header, (collapsed ? "▸  " : "▾  ") + title, GitStyles.SectionHeader))
+            if (GUI.Button(header, (collapsed ? GitIcons.Collapsed : GitIcons.Expanded) + "  " + title, GitStyles.SectionHeader))
             {
                 if (collapsed) m_CollapsedSections.Remove(key);
                 else m_CollapsedSections.Add(key);
@@ -711,16 +718,16 @@ namespace GitTools.EditorTools
             return row;
         }
 
-        bool DrawSidebarRow(Rect rect, string label, int indent, bool selected, Color dot, bool bold = false)
+        bool DrawSidebarRow(Rect rect, string label, int indent, bool selected, Color dot, bool bold = false, string glyph = null)
         {
-            if (selected) EditorGUI.DrawRect(rect, GitStyles.RowSelected);
+            if (selected) GitStyles.DrawSelectedRow(rect);
             else if (rect.Contains(Event.current.mousePosition)) EditorGUI.DrawRect(rect, GitStyles.RowHover);
 
-            var marker = new Rect(rect.x + 6f + indent * 6f, rect.y + rect.height * 0.5f - 3f, 6f, 6f);
-            EditorGUI.DrawRect(marker, dot);
+            var marker = new Rect(rect.x + 4f + indent * 6f, rect.y, 14f, rect.height);
+            GitStyles.DrawIcon(marker, glyph ?? GitIcons.Other, dot);
 
-            var text = new Rect(marker.xMax + 6f, rect.y, rect.width - marker.xMax - 10f, rect.height);
-            GUI.Label(text, label, bold ? EditorStyles.boldLabel : GitStyles.Row);
+            var text = new Rect(marker.xMax + 4f, rect.y, rect.width - marker.xMax - 8f, rect.height);
+            GUI.Label(text, label, bold ? GitStyles.RowBold : GitStyles.Row);
 
             var e = Event.current;
             if (e.type == EventType.MouseDown && e.button == 0 && rect.Contains(e.mousePosition))
@@ -882,7 +889,7 @@ namespace GitTools.EditorTools
 
         void DrawWorkingTreeRow(Rect row, float graphWidth)
         {
-            if (m_WorkingTreeSelected) EditorGUI.DrawRect(row, GitStyles.RowSelected);
+            if (m_WorkingTreeSelected) GitStyles.DrawSelectedRow(row);
             else if (row.Contains(Event.current.mousePosition)) EditorGUI.DrawRect(row, GitStyles.RowHover);
 
             var node = new Rect(graphWidth * 0.5f - 4f, row.y + RowHeight * 0.5f - 4f, 8f, 8f);
@@ -907,7 +914,7 @@ namespace GitTools.EditorTools
         {
             bool selected = !m_WorkingTreeSelected && commit.Sha == m_SelectedSha;
 
-            if (selected) EditorGUI.DrawRect(row, GitStyles.RowSelected);
+            if (selected) GitStyles.DrawSelectedRow(row);
             else if (index % 2 == 1) EditorGUI.DrawRect(row, GitStyles.RowAlternate);
             else if (row.Contains(Event.current.mousePosition)) EditorGUI.DrawRect(row, GitStyles.RowHover);
 
@@ -1135,13 +1142,14 @@ namespace GitTools.EditorTools
                 var row = new Rect(0f, i * SidebarRow, view.width, SidebarRow);
 
                 bool selected = entry.Path == m_SelectedFile;
-                if (selected) EditorGUI.DrawRect(row, GitStyles.RowSelected);
+                if (selected) GitStyles.DrawSelectedRow(row);
                 else if (row.Contains(Event.current.mousePosition)) EditorGUI.DrawRect(row, GitStyles.RowHover);
 
-                var marker = new Rect(row.x + 6f, row.y + 6f, 6f, 6f);
-                EditorGUI.DrawRect(marker, entry.StatusColor);
+                // A letter badge (A/M/D/R/U) says far more at a glance than a coloured dot.
+                var marker = new Rect(row.x + 5f, row.y + 2f, 14f, SidebarRow - 4f);
+                GitStyles.DrawStatusBadge(marker, entry.Status, entry.StatusColor);
 
-                float buttonsWidth = m_WorkingTreeSelected ? 46f : 0f;
+                float buttonsWidth = m_WorkingTreeSelected ? 70f : 0f;
                 var label = new Rect(marker.xMax + 5f, row.y, row.width - marker.xMax - buttonsWidth - 10f, row.height);
                 GUI.Label(label, entry.Display, GitStyles.Row);
 
@@ -1241,7 +1249,7 @@ namespace GitTools.EditorTools
             EditorGUI.DrawRect(header, GitStyles.HeaderBackground);
 
             var toggle = new Rect(header.x + 4f, header.y, 220f, header.height);
-            if (GUI.Button(toggle, (m_ShowLog ? "▾  " : "▸  ") + "Git console (" + m_Log.Count + ")", GitStyles.SectionHeader))
+            if (GUI.Button(toggle, (m_ShowLog ? GitIcons.Expanded : GitIcons.Collapsed) + "  " + GitIcons.Console + "  Git console (" + m_Log.Count + ")", GitStyles.SectionHeader))
                 m_ShowLog = !m_ShowLog;
 
             if (m_Log.Count > 0)
