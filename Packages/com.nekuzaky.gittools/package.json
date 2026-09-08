@@ -1,0 +1,23 @@
+{
+  "name": "com.nekuzaky.gittools",
+  "version": "0.1.0",
+  "displayName": "Git Tools",
+  "description": "Client Git integre a l'editeur Unity : indexer, committer, pousser, tirer, changer de branche et fusionner sans quitter le moteur. Fenetre accessible via Tools > Git.",
+  "unity": "2021.3",
+  "keywords": [
+    "git",
+    "vcs",
+    "version-control",
+    "editor",
+    "tools"
+  ],
+  "author": {
+    "name": "Nekuzaky",
+    "url": "https://github.com/Nekuzaky"
+  },
+  "license": "MIT",
+  "documentationUrl": "https://github.com/Nekuzaky/git-unity",
+  "changelogUrl": "https://github.com/Nekuzaky/git-unity/blob/main/Packages/com.nekuzaky.gittools/CHANGELOG.md",
+  "licensesUrl": "https://github.com/Nekuzaky/git-unity/blob/main/Packages/com.nekuzaky.gittools/LICENSE.md",
+  "hideInEditor": false
+}
