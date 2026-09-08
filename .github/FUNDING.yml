@@ -1,0 +1,17 @@
+# Shown as a "Sponsor" button at the top of the repository.
+# Only enable a platform once the matching account actually exists: a line here
+# becomes a public link, and a dead one is worse than no button at all.
+
+github: [nekuzaky]
+patreon: nekuzaky
+buy_me_a_coffee: nekuzaky
+
+# Uncomment whichever of these you also have an account on.
+# ko_fi: nekuzaky
+# liberapay: nekuzaky
+# tidelift:
+# open_collective:
+# community_bridge:
+# polar:
+# thanks_dev:
+# custom: ["https://example.com/donate"]
