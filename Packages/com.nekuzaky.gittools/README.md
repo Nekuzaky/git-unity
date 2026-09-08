@@ -1,28 +1,28 @@
 # Git Tools
 
-Client Git intégré à l'éditeur Unity. Indexer, committer, pousser, tirer, changer de branche
-et fusionner sans jamais quitter le moteur.
+A Git client embedded in the Unity editor. Stage, commit, push, pull, branch and merge
+without ever leaving the engine.
 
-Le package appelle l'exécutable `git` installé sur la machine : pas de DLL native embarquée,
-Git LFS et le gestionnaire d'identifiants du système continuent de fonctionner tels quels.
+The package drives the `git` executable installed on the machine: no native DLL is
+bundled, and Git LFS and the system credential manager keep working as they already do.
 
 ## Installation
 
-### Par URL git (Package Manager)
+### From a git URL (Package Manager)
 
-`Window > Package Manager > + > Install package from git URL…` puis :
+`Window > Package Manager > + > Install package from git URL…` then:
 
 ```
 https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools
 ```
 
-Pour épingler une version, ajoute une révision :
+To pin a version, append a revision:
 
 ```
-https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools#v0.1.0
+https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools#v0.3.0
 ```
 
-### Par `manifest.json`
+### From `manifest.json`
 
 ```json
 {
@@ -32,61 +32,52 @@ https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools#v
 }
 ```
 
-### En local
+### Locally
 
-Copie le dossier dans `Packages/` du projet, ou ajoute-le via
-`Package Manager > + > Install package from disk…` en pointant sur `package.json`.
+Copy the folder into the project's `Packages/`, or add it through
+`Package Manager > + > Install package from disk…` pointing at `package.json`.
 
-## Prérequis
+## Requirements
 
-- Unity 2021.3 ou plus récent.
-- `git` 2.23+ accessible dans le `PATH` (la commande `git restore` est utilisée).
-- Un dépôt Git initialisé à la racine du projet (le dossier qui contient `Assets/`).
+- Unity 2021.3 or newer.
+- `git` 2.23+ on the `PATH` (the `git restore` command is used).
+- A Git repository initialised at the project root — the folder containing `Assets/`.
 
-## Utilisation
+## Usage
 
-Le package fournit deux fenêtres, toutes deux sous le menu `Tools > Git`.
+`Tools > Git`, or `Ctrl+Shift+G` (`Cmd+Shift+G` on macOS).
 
-### `Tools > Git > Dashboard` (`Ctrl+Shift+G`)
+The window is split into three resizable panes; their sizes are remembered between sessions.
 
-La vue complète, organisée en trois zones redimensionnables.
-
-| Zone | Contenu |
+| Pane | Contents |
 | --- | --- |
-| Barre d'outils | Actualiser, Fetch, Pull, Push, création de branche, menu Stash, filtre de recherche, nombre de commits affichés |
-| Sidebar | Branche courante et son suivi, modifications en cours, branches locales (avec compteurs ↑↓), branches distantes, tags, stashes |
-| Graphe | Historique avec lanes colorées, nœuds pleins pour les commits et évidés pour les fusions, badges de branches et de tags, auteur, date relative, SHA |
-| Détail | Fichiers du commit sélectionné, ou zone d'indexation et de commit quand la ligne « Modifications non commitées » est sélectionnée |
-| Diff | Diff colorisé du fichier sélectionné, avec défilement virtualisé |
-| Console git | Chaque commande exécutée et sa sortie brute |
+| Toolbar | Refresh, Fetch, Pull, Push, branch creation, Stash menu, search filter, history depth |
+| Sidebar | Current branch and its tracking state, pending changes, local branches (with ahead/behind counters), remote branches, tags, stashes |
+| Graph | History with coloured lanes, filled nodes for commits and hollow ones for merges, branch and tag badges, author, relative date, SHA |
+| Detail | Files of the selected commit, or the staging area when the "Uncommitted changes" row is selected |
+| Diff | Colourised diff of the selected file, with virtualised scrolling |
+| Git console | Every command that ran, with its raw output |
 
-Doubler-cliquer une branche bascule dessus. Un clic droit ouvre un menu contextuel :
+Double-clicking a branch checks it out. Clicking one scrolls the graph to its tip.
+Right-clicking opens a context menu:
 
-- **sur une branche locale** — basculer, fusionner dans la branche courante, renommer, supprimer
-  (avec proposition de forcer si elle n'est pas fusionnée) ;
-- **sur une branche distante** — créer une branche locale de suivi, fusionner, supprimer sur le distant ;
-- **sur un commit** — copier le SHA ou le message, créer une branche ou un tag ici, basculer dessus,
-  cherry-pick, revert, `reset --mixed` ou `reset --hard` ;
-- **sur un tag** — supprimer, pousser ;
-- **sur un stash** — appliquer, appliquer et retirer (`pop`), supprimer.
+- **local branch** — switch, merge into the current branch, rename, delete (offering to force
+  when the branch is not fully merged);
+- **remote branch** — check out as a local tracking branch, merge, delete on the remote;
+- **commit** — copy the SHA or message, create a branch or tag here, check out, cherry-pick,
+  revert, `reset --mixed` or `reset --hard`;
+- **tag** — delete, push;
+- **stash** — apply, apply and drop (`pop`), delete.
 
-Cliquer une branche dans la sidebar fait défiler le graphe jusqu'à son sommet.
+Selecting a file also highlights it in the Project window when it lives under `Assets/`.
 
-### `Tools > Git > Panneau rapide`
+Anything that touches the disk (pull, checkout, merge, discard) triggers an
+`AssetDatabase.Refresh()`.
 
-Une fenêtre compacte, sans historique : indexation, commit, push/pull et branches.
-Utile en panneau étroit ancré à côté de l'Inspector.
+## Scene and prefab conflicts
 
-Sélectionner un fichier dans la liste le met aussi en surbrillance dans la fenêtre Project
-lorsqu'il se trouve sous `Assets/`.
-
-Toute opération qui modifie le disque (pull, checkout, merge, annulation) déclenche
-un `AssetDatabase.Refresh()`.
-
-## Conflits sur les scènes et les prefabs
-
-Le bandeau de conflit propose un bouton **Résoudre (UnityYAMLMerge)** qui appelle
-`git mergetool`. Il faut avoir déclaré l'outil une fois dans le dépôt :
+The conflict banner offers a **Resolve (UnityYAMLMerge)** button that calls `git mergetool`.
+The tool has to be declared once in the repository:
 
 ```bash
 git config merge.tool unityyamlmerge
@@ -95,29 +86,32 @@ git config mergetool.unityyamlmerge.keepBackup false
 git config mergetool.unityyamlmerge.cmd '"<Unity>/Editor/Data/Tools/UnityYAMLMerge.exe" merge -p "$BASE" "$REMOTE" "$LOCAL" "$MERGED"'
 ```
 
-Remplace `<Unity>` par le chemin de ton installation, par exemple
+Replace `<Unity>` with your installation path, for example
 `C:/Program Files/Unity/Hub/Editor/6000.3.13f1`.
 
-Vérifie également dans `Project Settings > Editor` que **Asset Serialization** est sur
-**Force Text** : sans cela, les scènes sont binaires et aucun outil ne peut les fusionner.
+Also check in `Project Settings > Editor` that **Asset Serialization** is set to
+**Force Text**: without it scenes are binary and no tool can merge them.
 
-## Notes de conception
+## Design notes
 
-- Les commandes tournent sur un thread de fond ; le callback est renvoyé sur le thread
-  principal de l'éditeur, qui ne se fige donc jamais. Délai maximal : 120 s par commande.
-- `GIT_TERMINAL_PROMPT=0` est forcé : une commande qui réclamerait des identifiants
-  échoue proprement dans la console au lieu de bloquer sur une invite invisible.
-- Le message de commit passe par un fichier temporaire (`git commit --file=`), ce qui
-  élimine les problèmes de guillemets, d'accents et de retours à la ligne.
-- Les actions destructrices (annuler un fichier, tout annuler, changer de branche avec des
-  modifications en cours, fusionner) demandent confirmation.
+- Commands run on a background thread and their callback is marshalled back onto the editor
+  main thread, so the editor never freezes. Each command times out after 120 s.
+- `GIT_TERMINAL_PROMPT=0` is forced: a command that would ask for credentials fails cleanly
+  in the console instead of hanging on an invisible prompt.
+- The commit message is passed through a temporary file (`git commit --file=`), which removes
+  every quoting, accent and newline problem.
+- The history and the diff are both virtualised: only the rows inside the viewport are drawn,
+  so a thousand commits still scroll smoothly.
+- Destructive actions (discarding a file, resetting, deleting a branch, merging) ask for
+  confirmation first.
 
-## Limites connues
+## Known limitations
 
-- Pas encore d'historique des commits, de stash, ni de sélection multiple par cases à cocher.
-- Le staging partiel (par ligne ou par bloc) n'est pas géré : l'indexation se fait par fichier.
-- Les dépôts avec sous-modules ne sont pas gérés spécifiquement.
+- No per-line or per-hunk staging: files are staged whole.
+- No interactive rebase, no submodule handling.
+- The graph reads the first N commits of `git log` (100 to 1000, selectable in the toolbar)
+  rather than streaming the whole history.
 
 ## Licence
 
-MIT — voir [LICENSE.md](LICENSE.md).
+MIT — see [LICENSE.md](LICENSE.md).

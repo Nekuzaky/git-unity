@@ -24,6 +24,7 @@ namespace GitTools.EditorTools
                     case 'A': return GitStyles.LocalBranchBadge;
                     case 'D': return new Color(0.85f, 0.35f, 0.35f);
                     case 'R': return GitStyles.RemoteBranchBadge;
+                    case 'U': return new Color(0.92f, 0.45f, 0.20f);
                     default: return GitStyles.HeadBadge;
                 }
             }
@@ -455,8 +456,13 @@ namespace GitTools.EditorTools
             var toolbar = new Rect(0f, 0f, position.width, Toolbar);
             DrawToolbar(toolbar);
 
+            var bannerHeight = m_Status.HasConflicts ? 24f : 0f;
+            if (bannerHeight > 0f)
+                DrawConflictBanner(new Rect(0f, Toolbar, position.width, bannerHeight));
+
             var logHeight = m_ShowLog ? 130f : 18f;
-            var body = new Rect(0f, Toolbar, position.width, position.height - Toolbar - logHeight);
+            var body = new Rect(0f, Toolbar + bannerHeight, position.width,
+                position.height - Toolbar - bannerHeight - logHeight);
 
             m_SidebarWidth = Mathf.Clamp(m_SidebarWidth, 160f, Mathf.Max(160f, position.width - 420f));
             var sidebar = new Rect(body.x, body.y, m_SidebarWidth, body.height);
@@ -488,6 +494,27 @@ namespace GitTools.EditorTools
             {
                 GitRunner.RunAsync("init", r => { LogResult(r); ReloadAll(); });
             }
+        }
+
+        /// <summary>
+        /// Shown while a merge is in progress: UnityYAMLMerge is the only sane way to
+        /// resolve a conflicted scene or prefab, so it gets a button of its own.
+        /// </summary>
+        void DrawConflictBanner(Rect rect)
+        {
+            EditorGUI.DrawRect(rect, new Color(0.45f, 0.16f, 0.16f));
+
+            var conflicts = m_Status.Changes.FindAll(c => c.IsConflicted).Count;
+            var label = new Rect(rect.x + 8f, rect.y, rect.width - 300f, rect.height);
+            GUI.Label(label, "Merge conflict: " + conflicts + " file(s) need resolving, then staging.", EditorStyles.boldLabel);
+
+            var resolve = new Rect(rect.xMax - 290f, rect.y + 2f, 180f, rect.height - 4f);
+            if (GUI.Button(resolve, "Resolve (UnityYAMLMerge)", EditorStyles.miniButton))
+                Execute("mergetool --no-prompt", refreshAssets: true);
+
+            var abort = new Rect(rect.xMax - 104f, rect.y + 2f, 96f, rect.height - 4f);
+            if (GUI.Button(abort, "Abort merge", EditorStyles.miniButton))
+                Execute("merge --abort", refreshAssets: true);
         }
 
         void DrawToolbar(Rect rect)
@@ -1020,8 +1047,9 @@ namespace GitTools.EditorTools
         {
             EditorGUI.DrawRect(rect, GitStyles.PanelBackground);
 
-            var header = new Rect(rect.x, rect.y, rect.width, 42f);
-            DrawDetailHeader(header);
+            var bodyLines = CommitBodyLines();
+            var header = new Rect(rect.x, rect.y, rect.width, 42f + bodyLines.Length * 14f);
+            DrawDetailHeader(header, bodyLines);
 
             var body = new Rect(rect.x, header.yMax, rect.width, rect.height - header.height);
             m_FilesWidth = Mathf.Clamp(m_FilesWidth, 180f, Mathf.Max(180f, body.width - 240f));
@@ -1035,7 +1063,32 @@ namespace GitTools.EditorTools
             m_Diff.Draw(new Rect(split.xMax, body.y, body.xMax - split.xMax, body.height));
         }
 
-        void DrawDetailHeader(Rect rect)
+        /// <summary>
+        /// The commit message minus its subject line, capped at three lines so a long
+        /// body never eats the file list.
+        /// </summary>
+        string[] CommitBodyLines()
+        {
+            if (m_WorkingTreeSelected || m_SelectedCommit == null || m_CommitBody.Length == 0)
+                return new string[0];
+
+            var lines = new List<string>();
+            var all = m_CommitBody.Replace("\r\n", "\n").Split('\n');
+
+            for (int i = 1; i < all.Length && lines.Count < 3; i++)
+            {
+                var line = all[i].Trim();
+                if (line.Length == 0 && lines.Count == 0) continue;
+                lines.Add(line);
+            }
+
+            while (lines.Count > 0 && lines[lines.Count - 1].Length == 0)
+                lines.RemoveAt(lines.Count - 1);
+
+            return lines.ToArray();
+        }
+
+        void DrawDetailHeader(Rect rect, string[] bodyLines)
         {
             EditorGUI.DrawRect(rect, GitStyles.HeaderBackground);
 
@@ -1060,6 +1113,12 @@ namespace GitTools.EditorTools
                 m_SelectedCommit.ShortSha + "   " + m_SelectedCommit.Author + " <" + m_SelectedCommit.AuthorEmail + ">   " +
                 m_SelectedCommit.Date.ToString("yyyy-MM-dd HH:mm"),
                 GitStyles.MonoSmall);
+
+            for (int i = 0; i < bodyLines.Length; i++)
+            {
+                var line = new Rect(rect.x + 8f, rect.y + 38f + i * 14f, rect.width - 16f, 14f);
+                GUI.Label(line, bodyLines[i], GitStyles.MonoSmall);
+            }
         }
 
         void DrawFiles(Rect rect)
@@ -1089,7 +1148,13 @@ namespace GitTools.EditorTools
                 if (m_WorkingTreeSelected)
                 {
                     var change = m_Status.Changes.Find(c => c.Path == entry.Path);
-                    if (change != null)
+                    if (change != null && change.IsConflicted)
+                    {
+                        var resolved = new Rect(row.xMax - 66f, row.y + 1f, 62f, SidebarRow - 3f);
+                        if (GUI.Button(resolved, "Resolved", EditorStyles.miniButton))
+                            Execute("add -- " + GitRunner.Quote(entry.Path));
+                    }
+                    else if (change != null)
                     {
                         var stageRect = new Rect(row.xMax - 44f, row.y + 1f, 20f, SidebarRow - 3f);
                         var discardRect = new Rect(row.xMax - 22f, row.y + 1f, 20f, SidebarRow - 3f);
