@@ -1,6 +1,6 @@
 {
   "name": "com.nekuzaky.gittools",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Git Tools",
   "description": "Client Git integre a l'editeur Unity : indexer, committer, pousser, tirer, changer de branche et fusionner sans quitter le moteur. Fenetre accessible via Tools > Git.",
   "unity": "2021.3",

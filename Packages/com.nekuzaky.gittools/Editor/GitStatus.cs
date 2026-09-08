@@ -27,22 +27,22 @@ namespace GitTools.EditorTools
 
         public string DisplayPath
         {
-            get { return OriginalPath != null ? OriginalPath + " → " + Path : Path; }
+            get { return OriginalPath != null ? OriginalPath + " -> " + Path : Path; }
         }
 
         public string Label(bool staged)
         {
-            if (IsConflicted) return "conflit";
+            if (IsConflicted) return "conflict";
             char code = staged ? IndexStatus : WorkTreeStatus;
             switch (code)
             {
-                case 'M': return "modifié";
-                case 'A': return "ajouté";
-                case 'D': return "supprimé";
-                case 'R': return "renommé";
-                case 'C': return "copié";
-                case 'T': return "type changé";
-                case '?': return "non suivi";
+                case 'M': return "modified";
+                case 'A': return "added";
+                case 'D': return "deleted";
+                case 'R': return "renamed";
+                case 'C': return "copied";
+                case 'T': return "typechange";
+                case '?': return "untracked";
                 default: return code.ToString();
             }
         }
@@ -114,7 +114,7 @@ namespace GitTools.EditorTools
             if (line.StartsWith("## HEAD (no branch)"))
             {
                 status.Detached = true;
-                status.Branch = "HEAD détachée";
+                status.Branch = "detached HEAD";
                 return;
             }
 

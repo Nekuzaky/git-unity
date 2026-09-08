@@ -45,18 +45,37 @@ Copie le dossier dans `Packages/` du projet, ou ajoute-le via
 
 ## Utilisation
 
-`Tools > Git`, ou `Ctrl+Shift+G` (`Cmd+Shift+G` sur macOS).
+Le package fournit deux fenêtres, toutes deux sous le menu `Tools > Git`.
+
+### `Tools > Git > Dashboard` (`Ctrl+Shift+G`)
+
+La vue complète, organisée en trois zones redimensionnables.
 
 | Zone | Contenu |
 | --- | --- |
-| Barre d'outils | Actualiser, Fetch, Pull, Push, bascule de rafraîchissement automatique (5 s) |
-| Barre de branche | Branche courante, upstream, nombre de commits à pousser / à tirer |
-| Indexé | Fichiers prêts à être commités — `−` pour désindexer |
-| Modifications | Fichiers modifiés et non suivis — `+` pour indexer, `x` pour annuler |
-| Diff | Différences du fichier sélectionné, côté index ou côté copie de travail |
-| Commit | Message multi-lignes, option `Amend`, `Commit` et `Commit & Push` |
-| Branches | Bascule, création, fusion (`--no-ff`) |
+| Barre d'outils | Actualiser, Fetch, Pull, Push, création de branche, menu Stash, filtre de recherche, nombre de commits affichés |
+| Sidebar | Branche courante et son suivi, modifications en cours, branches locales (avec compteurs ↑↓), branches distantes, tags, stashes |
+| Graphe | Historique avec lanes colorées, nœuds pleins pour les commits et évidés pour les fusions, badges de branches et de tags, auteur, date relative, SHA |
+| Détail | Fichiers du commit sélectionné, ou zone d'indexation et de commit quand la ligne « Modifications non commitées » est sélectionnée |
+| Diff | Diff colorisé du fichier sélectionné, avec défilement virtualisé |
 | Console git | Chaque commande exécutée et sa sortie brute |
+
+Doubler-cliquer une branche bascule dessus. Un clic droit ouvre un menu contextuel :
+
+- **sur une branche locale** — basculer, fusionner dans la branche courante, renommer, supprimer
+  (avec proposition de forcer si elle n'est pas fusionnée) ;
+- **sur une branche distante** — créer une branche locale de suivi, fusionner, supprimer sur le distant ;
+- **sur un commit** — copier le SHA ou le message, créer une branche ou un tag ici, basculer dessus,
+  cherry-pick, revert, `reset --mixed` ou `reset --hard` ;
+- **sur un tag** — supprimer, pousser ;
+- **sur un stash** — appliquer, appliquer et retirer (`pop`), supprimer.
+
+Cliquer une branche dans la sidebar fait défiler le graphe jusqu'à son sommet.
+
+### `Tools > Git > Panneau rapide`
+
+Une fenêtre compacte, sans historique : indexation, commit, push/pull et branches.
+Utile en panneau étroit ancré à côté de l'Inspector.
 
 Sélectionner un fichier dans la liste le met aussi en surbrillance dans la fenêtre Project
 lorsqu'il se trouve sous `Assets/`.
