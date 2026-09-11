@@ -746,7 +746,7 @@ namespace GitTools.EditorTools
             m_SidebarScroll = GUI.BeginScrollView(content, m_SidebarScroll, view);
             float y = 4f;
 
-            DrawSidebarSection(GitIcons.Changes + "  Changes", view.width, ref y, () =>
+            DrawSidebarSection("Changes", view.width, ref y, () =>
             {
                 var count = m_Status.Changes.Count;
                 var label = count == 0 ? "No changes" : count + " changed file(s)";
@@ -755,7 +755,7 @@ namespace GitTools.EditorTools
                     SelectWorkingTree();
             });
 
-            DrawSidebarSection(GitIcons.Branch + "  Local branches (" + m_Repo.LocalBranches.Count + ")", view.width, ref y, () =>
+            DrawSidebarSection("Local branches (" + m_Repo.LocalBranches.Count + ")", view.width, ref y, () =>
             {
                 foreach (var branch in m_Repo.LocalBranches)
                 {
@@ -775,7 +775,7 @@ namespace GitTools.EditorTools
                 }
             });
 
-            DrawSidebarSection(GitIcons.Remote + "  Remote branches (" + m_Repo.RemoteBranches.Count + ")", view.width, ref y, () =>
+            DrawSidebarSection("Remote branches (" + m_Repo.RemoteBranches.Count + ")", view.width, ref y, () =>
             {
                 foreach (var remote in m_Repo.RemoteBranches)
                 {
@@ -791,7 +791,7 @@ namespace GitTools.EditorTools
                 }
             });
 
-            DrawSidebarSection(GitIcons.Tag + "  Tags (" + m_Repo.Tags.Count + ")", view.width, ref y, () =>
+            DrawSidebarSection("Tags (" + m_Repo.Tags.Count + ")", view.width, ref y, () =>
             {
                 foreach (var tag in m_Repo.Tags)
                 {
@@ -809,7 +809,7 @@ namespace GitTools.EditorTools
                 }
             });
 
-            DrawSidebarSection(GitIcons.Stash + "  Stashes (" + m_Repo.Stashes.Count + ")", view.width, ref y, () =>
+            DrawSidebarSection("Stashes (" + m_Repo.Stashes.Count + ")", view.width, ref y, () =>
             {
                 foreach (var stash in m_Repo.Stashes)
                 {
@@ -1477,7 +1477,7 @@ namespace GitTools.EditorTools
             EditorGUI.DrawRect(header, GitStyles.HeaderBackground);
 
             var toggle = new Rect(header.x + 4f, header.y, 240f, header.height);
-            if (GUI.Button(toggle, GitStyles.IconLabel("Console", GitIcons.Console, "Git console (" + m_Log.Count + ")"), GitStyles.SectionHeader))
+            if (GUI.Button(toggle, GitStyles.IconLabel(m_ShowLog ? "Expanded" : "Collapsed", m_ShowLog ? GitIcons.Expanded : GitIcons.Collapsed, "Git console (" + m_Log.Count + ")"), GitStyles.SectionHeader))
                 m_ShowLog = !m_ShowLog;
 
             if (m_Log.Count > 0)

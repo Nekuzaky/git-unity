@@ -19,7 +19,7 @@ https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools
 To pin a version, append a revision:
 
 ```
-https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools#v0.6.0
+https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools#v0.6.1
 ```
 
 ### From `manifest.json`

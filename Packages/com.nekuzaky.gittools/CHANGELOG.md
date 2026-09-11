@@ -4,6 +4,25 @@ All notable changes to this package are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] - 2026-09-11
+
+### Fixed
+
+- Icons did not render at all and logged "Not allowed to override geometry on sprite"
+  once per icon per frame. VectorUtils.BuildSprite builds a Sprite and calls
+  Sprite.OverrideGeometry, which Unity 6 refuses; the artwork is now tessellated straight
+  into a Mesh with VectorUtils.FillMesh and drawn into a render texture, with no Sprite in
+  the path.
+- Rasterising moved off the GUI callback onto a delayCall, so mesh drawing no longer runs
+  inside the IMGUI repaint. A slot that is not ready yet falls back to its glyph for that
+  frame, and the window repaints once the texture lands.
+- A failed rasterisation is remembered instead of retried on every repaint, which is what
+  turned one broken icon into a console flood.
+- Sidebar section headers drew the fold caret and a leftover Unicode glyph side by side.
+- Collapsing a sidebar section did not shrink the scroll view: the collapse key carried
+  the glyph prefix and never matched the key used to measure the section height.
+- The console header lost its expand/collapse caret when it was wired to the icon set.
+
 ## [0.6.0] - 2026-09-11
 
 ### Added
