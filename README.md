@@ -40,9 +40,18 @@ or drop a stash.
 **Merge conflicts.** A banner appears while a merge is unresolved, with a one-click call to
 UnityYAMLMerge, per-file "Resolved" buttons and an abort button.
 
+**Responsive.** The layout follows the window: the sidebar folds away, toolbar buttons shed
+their labels, the search field moves into an overflow menu, and the detail pane stacks the
+file list above the diff. History columns fall right to left so the message always stays
+readable. It works maximised or docked in a narrow column.
+
 **Dark by default.** The window ships its own palette rather than inheriting the editor
-skin, with a toolbar toggle for a light one. Icons are Unicode symbols drawn through a
-symbol-capable font chain, not colour emoji, which Unity's IMGUI cannot render.
+skin, with a toolbar toggle for a light one. Icons are Bootstrap Icons, embedded as SVG and
+rasterised through Unity's built-in Vector Graphics module, rendered white and tinted at
+draw time. On editors without that module the UI falls back to Unicode glyphs.
+
+**Status footer.** Current branch, commit and change counts, and the repository path, with a
+quiet link if you feel like buying me a coffee.
 
 **Transparency.** Every command that runs and its raw output land in a console pane at the
 bottom of the window. Nothing is a black box.
@@ -104,7 +113,8 @@ by URL pulls in only the `Packages/com.nekuzaky.gittools` subfolder.
 
 ## How it is built
 
-Roughly 2 000 lines of editor C#, no third-party dependency.
+Roughly 3 300 lines of editor C#. The only third-party content is the Bootstrap Icons
+artwork, embedded as path data under the MIT licence.
 
 | File | Role |
 | --- | --- |
@@ -115,6 +125,8 @@ Roughly 2 000 lines of editor C#, no third-party dependency.
 | `GitDashboardWindow.cs` | The window: layout, graph rendering, all commands |
 | `GitDiffView.cs` | Colourised, virtualised diff renderer |
 | `GitStyles.cs` | Palette, styles and the `GitIcons` glyph set; owns the dark and light themes |
+| `GitIconArtwork.cs` | Generated Bootstrap Icons path data, and the map from UI slot to icon |
+| `GitIconTextures.cs` | Rasterises that artwork into cached textures, off the GUI callback |
 | `GitPromptWindow.cs` | Small modal text prompt for branch, tag and stash names |
 
 A few deliberate choices worth knowing about:

@@ -47,16 +47,17 @@ Copy the folder into the project's `Packages/`, or add it through
 
 `Tools > Git`, or `Ctrl+Shift+G` (`Cmd+Shift+G` on macOS).
 
-The window is split into three resizable panes; their sizes are remembered between sessions.
+The window is split into resizable panes; their sizes are remembered between sessions.
 
 | Pane | Contents |
 | --- | --- |
-| Toolbar | Refresh, Fetch, Pull, Push, branch creation, Stash menu, dark-theme toggle, search filter, history depth |
+| Toolbar | Sidebar toggle, Refresh, Fetch, Pull, Push, branch creation, Stash menu, dark-theme toggle, search filter, history depth, and an overflow menu holding whatever the width forced out |
 | Sidebar | Current branch and its tracking state, pending changes, local branches (with ahead/behind counters), remote branches, tags, stashes |
 | Graph | History with coloured lanes, filled nodes for commits and hollow ones for merges, branch and tag badges, author, relative date, SHA |
 | Detail | Files of the selected commit, or the staging area when the "Uncommitted changes" row is selected |
 | Diff | Colourised diff of the selected file, with virtualised scrolling |
 | Git console | Every command that ran, with its raw output |
+| Footer | Current branch, commit and change counts, repository path |
 
 Double-clicking a branch checks it out. Clicking one scrolls the graph to its tip.
 Right-clicking opens a context menu:
@@ -118,8 +119,12 @@ it reads like a dedicated Git client. The toggle in the toolbar switches to a li
 the choice is stored per user.
 
 Icons are [Bootstrap Icons](https://github.com/twbs/icons), embedded as SVG path data and
-rasterised at editor load through the built-in Vector Graphics module. They are rendered
-white and tinted at draw time, so one texture serves both themes.
+rasterised through the built-in Vector Graphics module. They are rendered white and tinted
+at draw time, so one texture serves both themes.
+
+Rasterising happens on demand and off the GUI callback: drawing a mesh into a render texture
+in the middle of an IMGUI repaint fights its render state. An icon that is not ready yet
+falls back to its glyph for that frame, which is invisible in practice.
 
 That module only exists from Unity 6 onwards. On 2021.3 and 2022 the asmdef leaves
 `GITTOOLS_VECTOR_GRAPHICS` undefined and the UI falls back to the Unicode glyphs declared
