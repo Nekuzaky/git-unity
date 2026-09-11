@@ -1,28 +1,37 @@
-﻿using UnityEditor;
+﻿using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 namespace GitTools.EditorTools
 {
     /// <summary>
-    /// Unicode glyphs used across the UI.
+    /// Unicode glyphs used across the UI, emoji included.
     ///
-    /// These are deliberately NOT colour emoji: Unity's IMGUI renders text through a dynamic
-    /// font that has no COLR/CBDT support, so 🌿 or 🏷 come out as empty boxes on most
-    /// setups. Every glyph below lives in the Basic Multilingual Plane and is covered by the
-    /// editor font (or by the fallbacks declared in <see cref="GitStyles"/>), so they render
-    /// as real shapes everywhere. Swap any of them here and the whole UI follows.
+    /// Two constraints shape this set.
+    ///
+    /// Emoji render here as monochrome silhouettes, never in colour: IMGUI rasterises text
+    /// through a dynamic font and ignores the COLR/CPAL layers, falling back to the base
+    /// outline. Segoe UI Symbol and Segoe UI Emoji both carry those outlines, so ☕, ⚠, ✏,
+    /// ⬆ and ⬇ below come out as proper shapes.
+    ///
+    /// Everything must live in the Basic Multilingual Plane. IMGUI addresses glyphs per
+    /// UTF-16 code unit (Font.HasCharacter takes a char), so an astral emoji such as 🌿
+    /// (U+1F33F) is looked up as two separate surrogates and renders as two blanks, even
+    /// though the fonts do contain the glyph.
+    ///
+    /// Swap any entry here and the whole UI follows.
     /// </summary>
     public static class GitIcons
     {
         public const string Refresh = "↻";  // ↻
         public const string Fetch = "⇅";    // ⇅
-        public const string Pull = "↓";     // ↓
-        public const string Push = "↑";     // ↑
+        public const string Pull = "⬇";     // emoji down
+        public const string Push = "⬆";     // emoji up
         public const string Branch = "◆";   // ◆
         public const string Remote = "◇";   // ◇
         public const string Tag = "⚑";      // ⚑
         public const string Stash = "▤";    // ▤
-        public const string Changes = "✎";  // ✎
+        public const string Changes = "✏";  // emoji pencil
         public const string Current = "●";  // ●
         public const string Other = "○";    // ○
         public const string Merge = "◈";    // ◈
@@ -30,13 +39,18 @@ namespace GitTools.EditorTools
         public const string Collapsed = "▸";// ▸
         public const string Ahead = "↑";    // ↑
         public const string Behind = "↓";   // ↓
-        public const string Conflict = "✱"; // ✱
+        public const string Conflict = "⚠"; // emoji warning
         public const string Discard = "✕";  // ✕
         public const string Stage = "+";
         public const string Unstage = "−";  // −
         public const string Theme = "◐";    // ◐
         public const string Console = "≡";  // ≡
         public const string Arrow = "→";    // →
+        public const string Sidebar = "☰";  // ☰
+        public const string More = "⋯";     // ⋯
+        public const string Coffee = "☕";   // ☕
+        public const string Empty = "▫";    // ▫
+        public const string Separator = "·"; // ·
     }
 
     /// <summary>
@@ -88,6 +102,8 @@ namespace GitTools.EditorTools
         public static Color Text { get { return Dark ? Hex(0xD6DAE0) : Hex(0x1E1E1E); } }
         public static Color Muted { get { return Dark ? Hex(0x8A929C) : Hex(0x585858); } }
         public static Color Danger { get { return Hex(0x8C2B2B); } }
+        public static Color FooterBackground { get { return Dark ? Hex(0x14171B) : Hex(0xB8B8B8); } }
+        public static Color Border { get { return Dark ? Hex(0x0E1114) : Hex(0xA5A5A5); } }
 
         public static Color DiffAdded { get { return Dark ? Hex(0x15321C) : Hex(0xC6EDC6); } }
         public static Color DiffRemoved { get { return Dark ? Hex(0x3A1C1E) : Hex(0xF7CCCC); } }
@@ -137,6 +153,9 @@ namespace GitTools.EditorTools
         static GUIStyle s_Badge;
         static GUIStyle s_Icon;
         static GUIStyle s_ToolbarButton;
+        static GUIStyle s_Footer;
+        static GUIStyle s_Link;
+        static GUIStyle s_EmptyState;
         static GUIStyle s_SectionHeader;
         static GUIStyle s_Title;
         static GUIStyle s_Subtitle;
@@ -160,7 +179,7 @@ namespace GitTools.EditorTools
                 {
                     s_Mono = new GUIStyle(EditorStyles.label)
                     {
-                        font = MonoFont(11),
+                        font = MonoFont(12),
                         wordWrap = false,
                         richText = false,
                         padding = new RectOffset(4, 4, 1, 1),
@@ -179,7 +198,7 @@ namespace GitTools.EditorTools
                 EnsureTheme();
                 if (s_MonoSmall == null)
                 {
-                    s_MonoSmall = new GUIStyle(Mono) { fontSize = 10 };
+                    s_MonoSmall = new GUIStyle(Mono) { fontSize = 11 };
                     s_MonoSmall.normal.textColor = Muted;
                 }
                 return s_MonoSmall;
@@ -256,7 +275,8 @@ namespace GitTools.EditorTools
                 {
                     s_Icon = new GUIStyle(EditorStyles.label)
                     {
-                        font = SymbolFont(11),
+                        font = SymbolFont(13),
+                        fontSize = 13,
                         alignment = TextAnchor.MiddleCenter,
                         padding = new RectOffset(0, 0, 0, 0),
                     };
@@ -279,9 +299,67 @@ namespace GitTools.EditorTools
                 EnsureTheme();
                 if (s_ToolbarButton == null)
                 {
-                    s_ToolbarButton = new GUIStyle(EditorStyles.toolbarButton) { font = SymbolFont(11) };
+                    s_ToolbarButton = new GUIStyle(EditorStyles.toolbarButton) { font = SymbolFont(12), fontSize = 12 };
                 }
                 return s_ToolbarButton;
+            }
+        }
+
+        /// <summary>Muted footer text.</summary>
+        public static GUIStyle Footer
+        {
+            get
+            {
+                EnsureTheme();
+                if (s_Footer == null)
+                {
+                    s_Footer = new GUIStyle(EditorStyles.miniLabel)
+                    {
+                        font = SymbolFont(11),
+                        fontSize = 11,
+                        alignment = TextAnchor.MiddleLeft,
+                        padding = new RectOffset(10, 10, 0, 0),
+                    };
+                    s_Footer.normal.textColor = Muted;
+                }
+                return s_Footer;
+            }
+        }
+
+        /// <summary>Clickable footer link: accent coloured, right aligned.</summary>
+        public static GUIStyle Link
+        {
+            get
+            {
+                EnsureTheme();
+                if (s_Link == null)
+                {
+                    s_Link = new GUIStyle(Footer) { alignment = TextAnchor.MiddleCenter };
+                    s_Link.normal.textColor = Text;
+                    s_Link.hover.textColor = Accent;
+                }
+                return s_Link;
+            }
+        }
+
+        /// <summary>Centred message for an empty list.</summary>
+        public static GUIStyle EmptyState
+        {
+            get
+            {
+                EnsureTheme();
+                if (s_EmptyState == null)
+                {
+                    s_EmptyState = new GUIStyle(EditorStyles.label)
+                    {
+                        font = SymbolFont(12),
+                        fontSize = 12,
+                        alignment = TextAnchor.MiddleCenter,
+                        wordWrap = true,
+                    };
+                    s_EmptyState.normal.textColor = Muted;
+                }
+                return s_EmptyState;
             }
         }
 
@@ -296,7 +374,7 @@ namespace GitTools.EditorTools
                     {
                         alignment = TextAnchor.MiddleCenter,
                         padding = new RectOffset(4, 4, 0, 0),
-                        fontSize = 9,
+                        fontSize = 10,
                     };
                     s_Badge.normal.textColor = Color.white;
                 }
@@ -313,8 +391,8 @@ namespace GitTools.EditorTools
                 {
                     s_SectionHeader = new GUIStyle(EditorStyles.boldLabel)
                     {
-                        font = SymbolFont(10),
-                        fontSize = 10,
+                        font = SymbolFont(11),
+                        fontSize = 11,
                         padding = new RectOffset(4, 4, 0, 0),
                         alignment = TextAnchor.MiddleLeft,
                     };
@@ -331,7 +409,7 @@ namespace GitTools.EditorTools
                 EnsureTheme();
                 if (s_Title == null)
                 {
-                    s_Title = new GUIStyle(EditorStyles.boldLabel) { fontSize = 12 };
+                    s_Title = new GUIStyle(EditorStyles.boldLabel) { fontSize = 13 };
                     s_Title.normal.textColor = Text;
                 }
                 return s_Title;
@@ -363,22 +441,47 @@ namespace GitTools.EditorTools
             s_Badge = null;
             s_Icon = null;
             s_ToolbarButton = null;
+            s_Footer = null;
+            s_Link = null;
+            s_EmptyState = null;
             s_SectionHeader = null;
             s_Title = null;
             s_Subtitle = null;
         }
 
+        // Fonts are cached per size and deliberately survive Reset(): rebuilding the styles
+        // on a theme change must not strand a set of dynamic fonts that nothing destroys.
+        static readonly Dictionary<int, Font> s_SymbolFonts = new Dictionary<int, Font>();
+        static readonly Dictionary<int, Font> s_MonoFonts = new Dictionary<int, Font>();
+
+        static readonly string[] SymbolFamilies =
+        {
+            "Segoe UI Symbol", "Segoe UI Emoji", "Apple Symbols", "Apple Color Emoji",
+            "Noto Emoji", "Arial Unicode MS", "DejaVu Sans", "Segoe UI", "Arial",
+        };
+
+        static readonly string[] MonoFamilies = { "Consolas", "Menlo", "DejaVu Sans Mono", "Courier New" };
+
         /// <summary>Font that covers both Latin text and the GitIcons glyphs.</summary>
         static Font SymbolFont(int size)
         {
-            return Font.CreateDynamicFontFromOSFont(
-                new[] { "Segoe UI Symbol", "Apple Symbols", "Arial Unicode MS", "DejaVu Sans", "Segoe UI", "Arial" }, size);
+            return CachedFont(s_SymbolFonts, SymbolFamilies, size);
         }
 
         static Font MonoFont(int size)
         {
-            return Font.CreateDynamicFontFromOSFont(
-                new[] { "Consolas", "Menlo", "DejaVu Sans Mono", "Courier New" }, size);
+            return CachedFont(s_MonoFonts, MonoFamilies, size);
+        }
+
+        static Font CachedFont(Dictionary<int, Font> cache, string[] families, int size)
+        {
+            Font font;
+            // The null test also catches a Font destroyed by a domain reload.
+            if (cache.TryGetValue(size, out font) && font != null) return font;
+
+            font = Font.CreateDynamicFontFromOSFont(families, size);
+            cache[size] = font;
+            return font;
         }
 
         // ------------------------------------------------------------- drawing
@@ -400,13 +503,58 @@ namespace GitTools.EditorTools
             GUI.Label(rect, status.ToString(), Badge);
         }
 
-        /// <summary>Draws a Unicode glyph tinted with <paramref name="color"/>.</summary>
-        public static void DrawIcon(Rect rect, string glyph, Color color)
+        /// <summary>
+        /// Draws an icon tinted with <paramref name="color"/>: Bootstrap artwork when the
+        /// vector graphics module is available, the Unicode glyph otherwise.
+        /// </summary>
+        public static void DrawIcon(Rect rect, string glyph, Color color, string slot = null)
         {
             var previous = GUI.color;
             GUI.color = color;
-            GUI.Label(rect, glyph, Icon);
+
+            var texture = slot != null ? GitIconTextures.Get(slot, IconPixelSize) : null;
+            if (texture != null)
+            {
+                var size = Mathf.Min(IconPixelSize, Mathf.Min(rect.width, rect.height));
+                var box = new Rect(
+                    rect.x + (rect.width - size) * 0.5f,
+                    rect.y + (rect.height - size) * 0.5f,
+                    size, size);
+
+                GUI.DrawTexture(box, texture, ScaleMode.ScaleToFit, true);
+            }
+            else
+            {
+                GUI.Label(rect, glyph, Icon);
+            }
+
             GUI.color = previous;
+        }
+
+        /// <summary>Pixel size the icon artwork is rasterised at.</summary>
+        public const int IconPixelSize = 16;
+
+        /// <summary>
+        /// Label for a control that carries an icon: artwork plus text where the artwork is
+        /// available, the glyph prefixed to the text otherwise.
+        /// </summary>
+        public static GUIContent IconLabel(string slot, string glyph, string text, string tooltip = null)
+        {
+            var texture = GitIconTextures.Get(slot, IconPixelSize);
+            if (texture != null)
+                return string.IsNullOrEmpty(text)
+                    ? new GUIContent(texture, tooltip ?? text)
+                    : new GUIContent("  " + text, texture, tooltip ?? text);
+
+            return string.IsNullOrEmpty(text)
+                ? new GUIContent(glyph, tooltip)
+                : new GUIContent(glyph + "  " + text, tooltip ?? text);
+        }
+
+        /// <summary>Hairline along the bottom edge of a rect, used under pane headers.</summary>
+        public static void DrawBottomBorder(Rect rect)
+        {
+            EditorGUI.DrawRect(new Rect(rect.x, rect.yMax - 1f, rect.width, 1f), Border);
         }
 
         /// <summary>Highlights a row and marks it with a left accent bar, the way Fork does.</summary>

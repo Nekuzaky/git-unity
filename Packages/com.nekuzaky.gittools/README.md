@@ -19,7 +19,7 @@ https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools
 To pin a version, append a revision:
 
 ```
-https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools#v0.4.0
+https://github.com/Nekuzaky/git-unity.git?path=/Packages/com.nekuzaky.gittools#v0.6.0
 ```
 
 ### From `manifest.json`
@@ -92,17 +92,41 @@ Replace `<Unity>` with your installation path, for example
 Also check in `Project Settings > Editor` that **Asset Serialization** is set to
 **Force Text**: without it scenes are binary and no tool can merge them.
 
+## Responsive layout
+
+The window adapts to its width, so it stays usable whether it is maximised or docked in a
+narrow column next to the Inspector:
+
+- below 900 px, toolbar buttons drop their labels and keep their glyph;
+- below 780 px, the search field moves into an overflow menu (the `...` button);
+- below 660 px, the sidebar folds away, and the branch filter and history depth join the
+  overflow menu;
+- below 560 px in the detail pane, the file list stacks above the diff instead of sitting
+  beside it.
+
+History columns are dropped from the right as the pane narrows, SHA first, then the date,
+then the author, so the commit message always keeps a readable width. The sidebar can also
+be toggled by hand from the toolbar, and the minimum window size is 360x300.
+
+The footer shows the current branch, the number of commits and pending changes, and the
+repository path.
+
 ## Theme and icons
 
 The window paints its own dark palette by default rather than following the editor skin, so
 it reads like a dedicated Git client. The toggle in the toolbar switches to a light palette;
 the choice is stored per user.
 
-Icons are Unicode symbols, not colour emoji. Unity's IMGUI draws text through a dynamic font
-with no COLR/CBDT support, so emoji render as blank boxes. Every glyph is declared in
-`GitIcons` and drawn with a symbol-capable font chain (Segoe UI Symbol first on Windows),
-because the editor font alone covers only a third of them. Change a glyph there and the
-whole UI follows.
+Icons are [Bootstrap Icons](https://github.com/twbs/icons), embedded as SVG path data and
+rasterised at editor load through the built-in Vector Graphics module. They are rendered
+white and tinted at draw time, so one texture serves both themes.
+
+That module only exists from Unity 6 onwards. On 2021.3 and 2022 the asmdef leaves
+`GITTOOLS_VECTOR_GRAPHICS` undefined and the UI falls back to the Unicode glyphs declared
+in `GitIcons`, which all sit in the Basic Multilingual Plane so IMGUI can look them up per
+UTF-16 code unit. Nothing else changes.
+
+The artwork is MIT licensed; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## Design notes
 

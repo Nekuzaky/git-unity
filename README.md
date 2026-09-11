@@ -2,7 +2,7 @@
 
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-000000?logo=unity&logoColor=white)](https://unity.com)
 [![UPM](https://img.shields.io/badge/UPM-com.nekuzaky.gittools-2C7BE5)](https://docs.unity3d.com/Manual/upm-ui-giturl.html)
-[![Version](https://img.shields.io/badge/version-0.4.0-2C7BE5)](Packages/com.nekuzaky.gittools/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.6.0-2C7BE5)](Packages/com.nekuzaky.gittools/CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-3DA639)](Packages/com.nekuzaky.gittools/LICENSE.md)
 [![Last commit](https://img.shields.io/github/last-commit/Nekuzaky/git-unity)](https://github.com/Nekuzaky/git-unity/commits/main)
 [![Stars](https://img.shields.io/github/stars/Nekuzaky/git-unity?style=flat)](https://github.com/Nekuzaky/git-unity/stargazers)
@@ -67,7 +67,7 @@ Or add it straight to `Packages/manifest.json`:
 }
 ```
 
-Pin a release by appending a tag, for example `#v0.4.0`.
+Pin a release by appending a tag, for example `#v0.6.0`.
 
 ### Requirements
 

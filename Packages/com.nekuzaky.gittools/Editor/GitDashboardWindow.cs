@@ -37,18 +37,27 @@ namespace GitTools.EditorTools
     /// </summary>
     public class GitDashboardWindow : EditorWindow
     {
-        const float Toolbar = 21f;
-        const float SplitterSize = 4f;
-        const float RowHeight = 21f;
-        const float SidebarRow = 18f;
-        const float LaneWidth = 14f;
+        const float Toolbar = 25f;
+        const float SplitterSize = 5f;
+        const float RowHeight = 25f;
+        const float SidebarRow = 22f;
+        const float LaneWidth = 16f;
         const float MaxGraphWidth = 180f;
+        const float FooterHeight = 26f;
+
+        // Layout breakpoints, in window width.
+        const float SidebarBreakpoint = 660f;   // below this the sidebar folds away
+        const float LabelBreakpoint = 900f;     // below this toolbar buttons lose their labels
+        const float SearchBreakpoint = 780f;    // below this the search field is dropped
+        const float StackBreakpoint = 560f;     // below this the detail pane stacks vertically
 
         const string PrefSidebar = "GitTools.Dashboard.Sidebar";
         const string PrefHistory = "GitTools.Dashboard.History";
         const string PrefFiles = "GitTools.Dashboard.Files";
+        const string PrefFilesHeight = "GitTools.Dashboard.FilesHeight";
         const string PrefAllBranches = "GitTools.Dashboard.AllBranches";
         const string PrefLimit = "GitTools.Dashboard.Limit";
+        const string PrefSidebarShown = "GitTools.Dashboard.SidebarShown";
 
         static readonly int[] Limits = { 100, 250, 500, 1000 };
         static readonly string[] LimitLabels = { "100 commits", "250 commits", "500 commits", "1000 commits" };
@@ -76,7 +85,9 @@ namespace GitTools.EditorTools
         float m_SidebarWidth = 220f;
         float m_HistoryHeight = 300f;
         float m_FilesWidth = 300f;
+        float m_FilesHeight = 150f;
         bool m_AllBranches = true;
+        bool m_ShowSidebar = true;
         int m_LimitIndex = 1;
 
         Vector2 m_SidebarScroll;
@@ -95,7 +106,8 @@ namespace GitTools.EditorTools
         public static void Open()
         {
             var window = GetWindow<GitDashboardWindow>("Git");
-            window.minSize = new Vector2(760f, 460f);
+            // Low enough that the window stays usable docked in a narrow column.
+            window.minSize = new Vector2(360f, 300f);
             window.Show();
         }
 
@@ -104,7 +116,9 @@ namespace GitTools.EditorTools
             m_SidebarWidth = EditorPrefs.GetFloat(PrefSidebar, 220f);
             m_HistoryHeight = EditorPrefs.GetFloat(PrefHistory, 300f);
             m_FilesWidth = EditorPrefs.GetFloat(PrefFiles, 300f);
+            m_FilesHeight = EditorPrefs.GetFloat(PrefFilesHeight, 150f);
             m_AllBranches = EditorPrefs.GetBool(PrefAllBranches, true);
+            m_ShowSidebar = EditorPrefs.GetBool(PrefSidebarShown, true);
             m_LimitIndex = Mathf.Clamp(EditorPrefs.GetInt(PrefLimit, 1), 0, Limits.Length - 1);
 
             m_Diff.Clear("Select a file to see its changes.");
@@ -116,7 +130,9 @@ namespace GitTools.EditorTools
             EditorPrefs.SetFloat(PrefSidebar, m_SidebarWidth);
             EditorPrefs.SetFloat(PrefHistory, m_HistoryHeight);
             EditorPrefs.SetFloat(PrefFiles, m_FilesWidth);
+            EditorPrefs.SetFloat(PrefFilesHeight, m_FilesHeight);
             EditorPrefs.SetBool(PrefAllBranches, m_AllBranches);
+            EditorPrefs.SetBool(PrefSidebarShown, m_ShowSidebar);
             EditorPrefs.SetInt(PrefLimit, m_LimitIndex);
 
             EditorApplication.update -= OnEditorUpdate;
@@ -458,23 +474,46 @@ namespace GitTools.EditorTools
             var toolbar = new Rect(0f, 0f, position.width, Toolbar);
             DrawToolbar(toolbar);
 
-            var bannerHeight = m_Status.HasConflicts ? 24f : 0f;
+            var bannerHeight = m_Status.HasConflicts ? 28f : 0f;
             if (bannerHeight > 0f)
                 DrawConflictBanner(new Rect(0f, Toolbar, position.width, bannerHeight));
 
-            var logHeight = m_ShowLog ? 130f : 18f;
-            var body = new Rect(0f, Toolbar + bannerHeight, position.width,
-                position.height - Toolbar - bannerHeight - logHeight);
+            // Chrome first, then the console takes what is left over once the body has kept
+            // a usable 40 px. Clamping this way means the panes can never be laid out past
+            // the footer, however short the window is docked.
+            var chrome = Toolbar + bannerHeight + FooterHeight;
+            var available = Mathf.Max(0f, position.height - chrome);
+            var logHeight = Mathf.Min(m_ShowLog ? 150f : 22f, Mathf.Max(0f, available - 40f));
 
-            m_SidebarWidth = Mathf.Clamp(m_SidebarWidth, 160f, Mathf.Max(160f, position.width - 420f));
-            var sidebar = new Rect(body.x, body.y, m_SidebarWidth, body.height);
-            DrawSidebar(sidebar);
+            var body = new Rect(0f, Toolbar + bannerHeight, position.width, available - logHeight);
 
-            var vSplit = new Rect(sidebar.xMax, body.y, SplitterSize, body.height);
-            HandleSplitter(vSplit, ref m_SidebarWidth, true, 1f);
+            if (body.height < 60f)
+            {
+                // Too short for the panes; the console and the footer still tell the story.
+                DrawLog(new Rect(0f, body.yMax, position.width, logHeight));
+                DrawFooter(new Rect(0f, position.height - FooterHeight, position.width, FooterHeight));
+                return;
+            }
 
-            var main = new Rect(vSplit.xMax, body.y, body.width - vSplit.xMax, body.height);
-            m_HistoryHeight = Mathf.Clamp(m_HistoryHeight, 120f, Mathf.Max(120f, main.height - 160f));
+            // The sidebar folds away on its own once the window gets too narrow to carry
+            // both it and a usable history, and the toolbar toggle can force it either way.
+            var showSidebar = m_ShowSidebar && position.width >= SidebarBreakpoint;
+
+            var main = body;
+            if (showSidebar)
+            {
+                m_SidebarWidth = Mathf.Clamp(m_SidebarWidth, 150f, Mathf.Max(150f, position.width - 360f));
+
+                var sidebar = new Rect(body.x, body.y, m_SidebarWidth, body.height);
+                DrawSidebar(sidebar);
+
+                var vSplit = new Rect(sidebar.xMax, body.y, SplitterSize, body.height);
+                HandleSplitter(vSplit, ref m_SidebarWidth, true, 1f);
+
+                main = new Rect(vSplit.xMax, body.y, body.width - vSplit.xMax, body.height);
+            }
+
+            m_HistoryHeight = Mathf.Clamp(m_HistoryHeight, 80f, Mathf.Max(80f, main.height - 120f));
 
             var history = new Rect(main.x, main.y, main.width, m_HistoryHeight);
             DrawHistory(history);
@@ -486,6 +525,41 @@ namespace GitTools.EditorTools
             DrawDetail(detail);
 
             DrawLog(new Rect(0f, body.yMax, position.width, logHeight));
+            DrawFooter(new Rect(0f, position.height - FooterHeight, position.width, FooterHeight));
+        }
+
+        /// <summary>
+        /// Status line plus a discreet way to say thanks. The link only ever opens on a
+        /// click the user made themselves.
+        /// </summary>
+        void DrawFooter(Rect rect)
+        {
+            EditorGUI.DrawRect(rect, GitStyles.FooterBackground);
+            EditorGUI.DrawRect(new Rect(rect.x, rect.y, rect.width, 1f), GitStyles.Border);
+
+            var summary = m_Status.Branch;
+            if (m_Commits.Count > 0) summary += "   " + GitIcons.Separator + "   " + m_Commits.Count + " commits";
+            if (!m_Status.IsClean) summary += "   " + GitIcons.Separator + "   " + m_Status.Changes.Count + " changed";
+            if (position.width >= 620f) summary += "   " + GitIcons.Separator + "   " + GitRunner.RepositoryRoot;
+
+            var coffee = GitStyles.IconLabel("Coffee", GitIcons.Coffee,
+                position.width < 420f ? null : "Buy me a coffee",
+                "Support the development of Git Tools on buymeacoffee.com/nekuzaky");
+
+            var linkWidth = Mathf.Min(GitStyles.Link.CalcSize(coffee).x + 20f, rect.width * 0.6f);
+            var linkRect = new Rect(rect.xMax - linkWidth - 6f, rect.y + 3f, linkWidth, rect.height - 6f);
+
+            GUI.Label(new Rect(rect.x, rect.y, rect.width - linkRect.width - 12f, rect.height), summary, GitStyles.Footer);
+
+            // A quiet pill that only lights up under the cursor, so it never nags.
+            var hovered = linkRect.Contains(Event.current.mousePosition);
+            EditorGUI.DrawRect(linkRect, hovered ? GitStyles.HeaderBackground : GitStyles.PanelBackground);
+
+            EditorGUIUtility.AddCursorRect(linkRect, MouseCursor.Link);
+            if (GUI.Button(linkRect, coffee, GitStyles.Link))
+                Application.OpenURL("https://buymeacoffee.com/nekuzaky");
+
+            if (hovered) Repaint();
         }
 
         void DrawNoRepository()
@@ -519,53 +593,131 @@ namespace GitTools.EditorTools
                 Execute("merge --abort", refreshAssets: true);
         }
 
+        /// <summary>
+        /// Toolbar contents shrink with the window: labels drop first, then the search
+        /// field, then the history-depth popup, and what is left moves into an overflow
+        /// menu so no action ever becomes unreachable.
+        /// </summary>
         void DrawToolbar(Rect rect)
         {
+            var labels = position.width >= LabelBreakpoint;
+
             GUILayout.BeginArea(rect, EditorStyles.toolbar);
             using (new EditorGUILayout.HorizontalScope())
             {
+                // Below the breakpoint the sidebar cannot be shown at all, so the toggle
+                // reports that state instead of claiming to be on while nothing appears.
+                var canShowSidebar = position.width >= SidebarBreakpoint;
+                using (new EditorGUI.DisabledScope(!canShowSidebar))
+                {
+                    var sidebar = GUILayout.Toggle(m_ShowSidebar && canShowSidebar,
+                        GitStyles.IconLabel("Sidebar", GitIcons.Sidebar, null, canShowSidebar
+                            ? "Show or hide the sidebar."
+                            : "The window is too narrow for the sidebar."),
+                        GitStyles.ToolbarButton, GUILayout.Width(26f));
+
+                    if (canShowSidebar && sidebar != m_ShowSidebar) m_ShowSidebar = sidebar;
+                }
+
+                GUILayout.Space(4f);
+
                 using (new EditorGUI.DisabledScope(GitRunner.IsBusy))
                 {
-                    if (GUILayout.Button(GitIcons.Refresh + "  Refresh", GitStyles.ToolbarButton, GUILayout.Width(82f))) ReloadAll();
-                    if (GUILayout.Button(GitIcons.Fetch + "  Fetch", GitStyles.ToolbarButton, GUILayout.Width(62f))) Execute("fetch --all --prune");
-                    if (GUILayout.Button(GitIcons.Pull + "  Pull", GitStyles.ToolbarButton, GUILayout.Width(56f))) Execute("pull --rebase=false", true);
-                    if (GUILayout.Button(GitIcons.Push + "  Push", GitStyles.ToolbarButton, GUILayout.Width(56f))) Execute(BuildPushCommand());
+                    if (ToolbarButton("Refresh", GitIcons.Refresh, "Refresh", labels, 82f)) ReloadAll();
+                    if (ToolbarButton("Fetch", GitIcons.Fetch, "Fetch", labels, 62f)) Execute("fetch --all --prune");
+                    if (ToolbarButton("Pull", GitIcons.Pull, "Pull", labels, 56f)) Execute("pull --rebase=false", true);
+                    if (ToolbarButton("Push", GitIcons.Push, "Push", labels, 56f)) Execute(BuildPushCommand());
 
-                    GUILayout.Space(8f);
+                    GUILayout.Space(6f);
 
-                    if (GUILayout.Button(GitIcons.Branch + "  Branch", GitStyles.ToolbarButton, GUILayout.Width(74f)))
+                    if (ToolbarButton("Branch", GitIcons.Branch, "Branch", labels, 74f))
                     {
                         GitPromptWindow.Show("New branch", "Name", "", "Create and switch",
                             name => Execute("checkout -b " + GitRunner.Quote(name), true));
                     }
 
-                    if (GUILayout.Button(GitIcons.Stash + "  Stash", GitStyles.ToolbarButton, GUILayout.Width(64f)))
-                        ShowStashMenu();
+                    if (ToolbarButton("Stash", GitIcons.Stash, "Stash", labels, 64f)) ShowStashMenu();
                 }
 
                 GUILayout.FlexibleSpace();
 
                 if (GitRunner.IsBusy)
                 {
-                    GUILayout.Label("git...", EditorStyles.toolbarButton, GUILayout.Width(40f));
+                    GUILayout.Label(GitIcons.Refresh, GitStyles.ToolbarButton, GUILayout.Width(24f));
                     Repaint();
                 }
 
                 var dark = GUILayout.Toggle(GitStyles.Dark,
-                    new GUIContent(GitIcons.Theme, "Dark theme: draw the window with its own palette instead of the editor skin."),
+                    GitStyles.IconLabel("Theme", GitIcons.Theme, null, "Dark theme: draw the window with its own palette instead of the editor skin."),
                     GitStyles.ToolbarButton, GUILayout.Width(26f));
                 if (dark != GitStyles.Dark) GitStyles.Dark = dark;
 
-                EditorGUI.BeginChangeCheck();
-                m_AllBranches = GUILayout.Toggle(m_AllBranches, "All branches", EditorStyles.toolbarButton, GUILayout.Width(122f));
-                m_LimitIndex = EditorGUILayout.Popup(m_LimitIndex, LimitLabels, EditorStyles.toolbarPopup, GUILayout.Width(96f));
-                if (EditorGUI.EndChangeCheck()) ReloadHistory();
+                if (position.width >= SidebarBreakpoint)
+                {
+                    EditorGUI.BeginChangeCheck();
+                    m_AllBranches = GUILayout.Toggle(m_AllBranches,
+                        GitStyles.IconLabel("Remote", GitIcons.Remote, labels ? "All branches" : null, "Include every branch in the graph, not just HEAD."),
+                        GitStyles.ToolbarButton, GUILayout.Width(labels ? 96f : 26f));
+                    m_LimitIndex = EditorGUILayout.Popup(m_LimitIndex, LimitLabels, EditorStyles.toolbarPopup, GUILayout.Width(92f));
+                    if (EditorGUI.EndChangeCheck()) ReloadHistory();
+                }
 
-                EditorGUI.BeginChangeCheck();
-                m_Search = GUILayout.TextField(m_Search, EditorStyles.toolbarSearchField, GUILayout.Width(170f));
-                if (EditorGUI.EndChangeCheck()) ApplySearch();
+                if (position.width >= SearchBreakpoint)
+                {
+                    EditorGUI.BeginChangeCheck();
+                    m_Search = GUILayout.TextField(m_Search, EditorStyles.toolbarSearchField,
+                        GUILayout.MinWidth(90f), GUILayout.MaxWidth(180f));
+                    if (EditorGUI.EndChangeCheck()) ApplySearch();
+                }
+                else if (GUILayout.Button(GitStyles.IconLabel("More", GitIcons.More, null, "More options"), GitStyles.ToolbarButton, GUILayout.Width(26f)))
+                {
+                    ShowOverflowMenu();
+                }
             }
             GUILayout.EndArea();
+        }
+
+        bool ToolbarButton(string slot, string glyph, string label, bool showLabel, float wideWidth)
+        {
+            var content = GitStyles.IconLabel(slot, glyph, showLabel ? label : null, label);
+            return GUILayout.Button(content, GitStyles.ToolbarButton, GUILayout.Width(showLabel ? wideWidth : 26f));
+        }
+
+        /// <summary>Holds whatever the toolbar had to drop at narrow widths.</summary>
+        void ShowOverflowMenu()
+        {
+            var menu = new GenericMenu();
+
+            menu.AddItem(new GUIContent("All branches"), m_AllBranches, () =>
+            {
+                m_AllBranches = !m_AllBranches;
+                ReloadHistory();
+            });
+
+            for (int i = 0; i < Limits.Length; i++)
+            {
+                var index = i;
+                menu.AddItem(new GUIContent("History depth/" + LimitLabels[i]), m_LimitIndex == i, () =>
+                {
+                    m_LimitIndex = index;
+                    ReloadHistory();
+                });
+            }
+
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent("Search..."), false, () =>
+                GitPromptWindow.Show("Search history", "Message, author or SHA", m_Search, "Search",
+                    needle => { m_Search = needle; ApplySearch(); Repaint(); }));
+
+            if (m_Search.Length > 0)
+                menu.AddItem(new GUIContent("Clear search (" + m_Search + ")"), false, () =>
+                {
+                    m_Search = "";
+                    ApplySearch();
+                    Repaint();
+                });
+
+            menu.ShowAsContext();
         }
 
         // --------------------------------------------------------------- sidebar
@@ -574,13 +726,14 @@ namespace GitTools.EditorTools
         {
             EditorGUI.DrawRect(rect, GitStyles.PanelBackground);
 
-            var header = new Rect(rect.x, rect.y, rect.width, 34f);
+            var header = new Rect(rect.x, rect.y, rect.width, 42f);
             EditorGUI.DrawRect(header, GitStyles.HeaderBackground);
+            GitStyles.DrawBottomBorder(header);
 
-            var branchLabel = new Rect(header.x + 6f, header.y + 2f, header.width - 12f, 16f);
+            var branchLabel = new Rect(header.x + 8f, header.y + 4f, header.width - 16f, 19f);
             GUI.Label(branchLabel, m_Status.Branch, GitStyles.Title);
 
-            var trackLabel = new Rect(header.x + 6f, header.y + 17f, header.width - 12f, 14f);
+            var trackLabel = new Rect(header.x + 8f, header.y + 23f, header.width - 16f, 16f);
             var summary = m_Status.Upstream ?? "no upstream";
             if (m_Status.Ahead > 0) summary += "   " + GitIcons.Ahead + m_Status.Ahead;
             if (m_Status.Behind > 0) summary += "   " + GitIcons.Behind + m_Status.Behind;
@@ -598,7 +751,7 @@ namespace GitTools.EditorTools
                 var count = m_Status.Changes.Count;
                 var label = count == 0 ? "No changes" : count + " changed file(s)";
                 var row = NextRow(view.width, ref y);
-                if (DrawSidebarRow(row, label, 1, m_WorkingTreeSelected, GitStyles.HeadBadge, false, GitIcons.Changes))
+                if (DrawSidebarRow(row, label, 1, m_WorkingTreeSelected, GitStyles.HeadBadge, false, GitIcons.Changes, "Changes"))
                     SelectWorkingTree();
             });
 
@@ -612,7 +765,7 @@ namespace GitTools.EditorTools
                         label += "   " + (branch.Ahead > 0 ? GitIcons.Ahead + branch.Ahead.ToString() + " " : "") + (branch.Behind > 0 ? GitIcons.Behind + branch.Behind.ToString() : "");
 
                     var color = branch.IsCurrent ? GitStyles.HeadBadge : GitStyles.LocalBranchBadge;
-                    if (DrawSidebarRow(row, label, 1, false, color, branch.IsCurrent, branch.IsCurrent ? GitIcons.Current : GitIcons.Other))
+                    if (DrawSidebarRow(row, label, 1, false, color, branch.IsCurrent, branch.IsCurrent ? GitIcons.Current : GitIcons.Other, branch.IsCurrent ? "Current" : "Branch"))
                     {
                         if (Event.current.clickCount == 2 && !branch.IsCurrent) Checkout(branch.Name);
                         else FocusBranch(branch.Name);
@@ -627,7 +780,7 @@ namespace GitTools.EditorTools
                 foreach (var remote in m_Repo.RemoteBranches)
                 {
                     var row = NextRow(view.width, ref y);
-                    if (DrawSidebarRow(row, remote, 1, false, GitStyles.RemoteBranchBadge, false, GitIcons.Remote))
+                    if (DrawSidebarRow(row, remote, 1, false, GitStyles.RemoteBranchBadge, false, GitIcons.Remote, "Remote"))
                     {
                         if (Event.current.clickCount == 2) CheckoutRemote(remote);
                         else FocusBranch(remote);
@@ -643,7 +796,7 @@ namespace GitTools.EditorTools
                 foreach (var tag in m_Repo.Tags)
                 {
                     var row = NextRow(view.width, ref y);
-                    if (DrawSidebarRow(row, tag, 1, false, GitStyles.TagBadge, false, GitIcons.Tag)) FocusBranch(tag);
+                    if (DrawSidebarRow(row, tag, 1, false, GitStyles.TagBadge, false, GitIcons.Tag, "Tag")) FocusBranch(tag);
 
                     var captured = tag;
                     HandleContext(row, () =>
@@ -661,7 +814,7 @@ namespace GitTools.EditorTools
                 foreach (var stash in m_Repo.Stashes)
                 {
                     var row = NextRow(view.width, ref y);
-                    DrawSidebarRow(row, stash.Selector + "  " + stash.Description, 1, false, GitStyles.StashBadge, false, GitIcons.Stash);
+                    DrawSidebarRow(row, stash.Selector + "  " + stash.Description, 1, false, GitStyles.StashBadge, false, GitIcons.Stash, "Stash");
 
                     var captured = stash;
                     HandleContext(row, () =>
@@ -700,7 +853,7 @@ namespace GitTools.EditorTools
             var header = new Rect(0f, cursor, width, SidebarRow);
 
             var collapsed = m_CollapsedSections.Contains(key);
-            if (GUI.Button(header, (collapsed ? GitIcons.Collapsed : GitIcons.Expanded) + "  " + title, GitStyles.SectionHeader))
+            if (GUI.Button(header, GitStyles.IconLabel(collapsed ? "Collapsed" : "Expanded", collapsed ? GitIcons.Collapsed : GitIcons.Expanded, title), GitStyles.SectionHeader))
             {
                 if (collapsed) m_CollapsedSections.Remove(key);
                 else m_CollapsedSections.Add(key);
@@ -718,13 +871,13 @@ namespace GitTools.EditorTools
             return row;
         }
 
-        bool DrawSidebarRow(Rect rect, string label, int indent, bool selected, Color dot, bool bold = false, string glyph = null)
+        bool DrawSidebarRow(Rect rect, string label, int indent, bool selected, Color dot, bool bold = false, string glyph = null, string slot = null)
         {
             if (selected) GitStyles.DrawSelectedRow(rect);
             else if (rect.Contains(Event.current.mousePosition)) EditorGUI.DrawRect(rect, GitStyles.RowHover);
 
-            var marker = new Rect(rect.x + 4f + indent * 6f, rect.y, 14f, rect.height);
-            GitStyles.DrawIcon(marker, glyph ?? GitIcons.Other, dot);
+            var marker = new Rect(rect.x + 5f + indent * 6f, rect.y, 17f, rect.height);
+            GitStyles.DrawIcon(marker, glyph ?? GitIcons.Other, dot, slot ?? "Other");
 
             var text = new Rect(marker.xMax + 4f, rect.y, rect.width - marker.xMax - 8f, rect.height);
             GUI.Label(text, label, bold ? GitStyles.RowBold : GitStyles.Row);
@@ -736,6 +889,17 @@ namespace GitTools.EditorTools
                 return true;
             }
             return false;
+        }
+
+        /// <summary>Centred placeholder shown in place of an empty list.</summary>
+        void DrawEmptyState(Rect rect, string message)
+        {
+            var box = new Rect(rect.x, rect.y + rect.height * 0.5f - 22f, rect.width, 44f);
+
+            var icon = new Rect(box.x + box.width * 0.5f - 8f, box.y, 16f, 16f);
+            GitStyles.DrawIcon(icon, GitIcons.Empty, GitStyles.Muted, "Empty");
+
+            GUI.Label(new Rect(box.x, box.y + 20f, box.width, 20f), message, GitStyles.EmptyState);
         }
 
         void FocusBranch(string refName)
@@ -827,8 +991,9 @@ namespace GitTools.EditorTools
         {
             EditorGUI.DrawRect(rect, GitStyles.PanelBackground);
 
-            var header = new Rect(rect.x, rect.y, rect.width, 18f);
+            var header = new Rect(rect.x, rect.y, rect.width, 22f);
             EditorGUI.DrawRect(header, GitStyles.HeaderBackground);
+            GitStyles.DrawBottomBorder(header);
 
             int graphLanes = GitLog.MaxLane(m_Visible) + 1;
             float graphWidth = Mathf.Min(MaxGraphWidth, Mathf.Max(2, graphLanes) * LaneWidth + 8f);
@@ -839,6 +1004,14 @@ namespace GitTools.EditorTools
 
             bool showWorkingRow = !m_Status.IsClean;
             int rowCount = m_Visible.Count + (showWorkingRow ? 1 : 0);
+
+            if (rowCount == 0)
+            {
+                DrawEmptyState(body, m_Search.Length > 0
+                    ? "No commit matches \"" + m_Search + "\""
+                    : "No commit yet");
+                return;
+            }
 
             var view = new Rect(0f, 0f, body.width - 16f, rowCount * RowHeight);
             m_HistoryScroll = GUI.BeginScrollView(body, m_HistoryScroll, view);
@@ -862,20 +1035,27 @@ namespace GitTools.EditorTools
         void DrawHistoryHeader(Rect rect, float graphWidth)
         {
             var columns = ColumnLayout(rect, graphWidth);
-            GUI.Label(columns[0], "Graph", GitStyles.MonoSmall);
+            if (columns[0].width > 24f) GUI.Label(columns[0], "Graph", GitStyles.MonoSmall);
             GUI.Label(columns[1], "Message", GitStyles.MonoSmall);
-            GUI.Label(columns[2], "Author", GitStyles.MonoSmall);
-            GUI.Label(columns[3], "Date", GitStyles.MonoSmall);
-            GUI.Label(columns[4], "SHA", GitStyles.MonoSmall);
+            if (columns[2].width > 1f) GUI.Label(columns[2], "Author", GitStyles.MonoSmall);
+            if (columns[3].width > 1f) GUI.Label(columns[3], "Date", GitStyles.MonoSmall);
+            if (columns[4].width > 1f) GUI.Label(columns[4], "SHA", GitStyles.MonoSmall);
         }
 
+        /// <summary>
+        /// Columns are dropped from the right as the pane narrows - SHA first, then the
+        /// date, then the author - so the message always keeps a readable width.
+        /// </summary>
         Rect[] ColumnLayout(Rect row, float graphWidth)
         {
-            const float authorWidth = 130f;
-            const float dateWidth = 74f;
-            const float shaWidth = 76f;
+            float available = row.width - graphWidth;
 
-            float messageWidth = Mathf.Max(80f, row.width - graphWidth - authorWidth - dateWidth - shaWidth - 12f);
+            // Highest threshold on the rightmost column, so they really do fall right to left.
+            float shaWidth = available >= 460f ? 76f : 0f;
+            float dateWidth = available >= 380f ? 74f : 0f;
+            float authorWidth = available >= 300f ? 130f : 0f;
+
+            float messageWidth = Mathf.Max(60f, row.width - graphWidth - authorWidth - dateWidth - shaWidth - 12f);
 
             float x = row.x;
             var graph = new Rect(x, row.y, graphWidth, row.height); x += graphWidth;
@@ -933,9 +1113,9 @@ namespace GitTools.EditorTools
             }
 
             GUI.Label(messageRect, commit.Subject, GitStyles.Row);
-            GUI.Label(columns[2], commit.Author, GitStyles.RowMuted);
-            GUI.Label(columns[3], commit.RelativeDate, GitStyles.RowRight);
-            GUI.Label(columns[4], commit.ShortSha, GitStyles.MonoSmall);
+            if (columns[2].width > 1f) GUI.Label(columns[2], commit.Author, GitStyles.RowMuted);
+            if (columns[3].width > 1f) GUI.Label(columns[3], commit.RelativeDate, GitStyles.RowRight);
+            if (columns[4].width > 1f) GUI.Label(columns[4], commit.ShortSha, GitStyles.MonoSmall);
 
             var e = Event.current;
             if (e.type == EventType.MouseDown && e.button == 0 && row.Contains(e.mousePosition))
@@ -1055,19 +1235,41 @@ namespace GitTools.EditorTools
             EditorGUI.DrawRect(rect, GitStyles.PanelBackground);
 
             var bodyLines = CommitBodyLines();
-            var header = new Rect(rect.x, rect.y, rect.width, 42f + bodyLines.Length * 14f);
+            var headerHeight = Mathf.Min(50f + bodyLines.Length * 16f, Mathf.Max(24f, rect.height - 44f));
+            var header = new Rect(rect.x, rect.y, rect.width, headerHeight);
             DrawDetailHeader(header, bodyLines);
 
+            // Nothing useful fits below the header; stop before handing out negative rects.
+            if (rect.height - headerHeight < 30f) return;
+
             var body = new Rect(rect.x, header.yMax, rect.width, rect.height - header.height);
-            m_FilesWidth = Mathf.Clamp(m_FilesWidth, 180f, Mathf.Max(180f, body.width - 240f));
 
-            var files = new Rect(body.x, body.y, m_FilesWidth, body.height);
-            DrawFiles(files);
+            // Side by side while there is room; stacked once the pane gets too narrow for
+            // a file list and a diff to coexist.
+            if (body.width >= StackBreakpoint)
+            {
+                m_FilesWidth = Mathf.Clamp(m_FilesWidth, 160f, Mathf.Max(160f, body.width - 220f));
 
-            var split = new Rect(files.xMax, body.y, SplitterSize, body.height);
-            HandleSplitter(split, ref m_FilesWidth, true, 1f);
+                var files = new Rect(body.x, body.y, m_FilesWidth, body.height);
+                DrawFiles(files);
 
-            m_Diff.Draw(new Rect(split.xMax, body.y, body.xMax - split.xMax, body.height));
+                var split = new Rect(files.xMax, body.y, SplitterSize, body.height);
+                HandleSplitter(split, ref m_FilesWidth, true, 1f);
+
+                m_Diff.Draw(new Rect(split.xMax, body.y, body.xMax - split.xMax, body.height));
+            }
+            else
+            {
+                m_FilesHeight = Mathf.Clamp(m_FilesHeight, 70f, Mathf.Max(70f, body.height - 80f));
+
+                var files = new Rect(body.x, body.y, body.width, m_FilesHeight);
+                DrawFiles(files);
+
+                var split = new Rect(body.x, files.yMax, body.width, SplitterSize);
+                HandleSplitter(split, ref m_FilesHeight, false, 1f);
+
+                m_Diff.Draw(new Rect(body.x, split.yMax, body.width, body.yMax - split.yMax));
+            }
         }
 
         /// <summary>
@@ -1098,9 +1300,10 @@ namespace GitTools.EditorTools
         void DrawDetailHeader(Rect rect, string[] bodyLines)
         {
             EditorGUI.DrawRect(rect, GitStyles.HeaderBackground);
+            GitStyles.DrawBottomBorder(rect);
 
-            var line1 = new Rect(rect.x + 8f, rect.y + 3f, rect.width - 16f, 17f);
-            var line2 = new Rect(rect.x + 8f, rect.y + 21f, rect.width - 16f, 15f);
+            var line1 = new Rect(rect.x + 10f, rect.y + 5f, rect.width - 20f, 19f);
+            var line2 = new Rect(rect.x + 10f, rect.y + 26f, rect.width - 20f, 17f);
 
             if (m_WorkingTreeSelected)
             {
@@ -1123,15 +1326,32 @@ namespace GitTools.EditorTools
 
             for (int i = 0; i < bodyLines.Length; i++)
             {
-                var line = new Rect(rect.x + 8f, rect.y + 38f + i * 14f, rect.width - 16f, 14f);
+                var line = new Rect(rect.x + 10f, rect.y + 45f + i * 16f, rect.width - 20f, 16f);
                 GUI.Label(line, bodyLines[i], GitStyles.MonoSmall);
             }
         }
 
         void DrawFiles(Rect rect)
         {
-            var commitBoxHeight = m_WorkingTreeSelected ? 116f : 0f;
-            var listRect = new Rect(rect.x, rect.y, rect.width, rect.height - commitBoxHeight);
+            // The commit box is the only way to commit from the window, so it keeps its
+            // minimum even in a cramped pane: the file list gives up the space instead of
+            // the control disappearing without explanation.
+            var commitBoxHeight = m_WorkingTreeSelected
+                ? Mathf.Min(Mathf.Max(58f, rect.height * 0.45f), Mathf.Min(116f, rect.height))
+                : 0f;
+
+            var listRect = new Rect(rect.x, rect.y, rect.width, Mathf.Max(0f, rect.height - commitBoxHeight));
+
+            if (m_Files.Count == 0)
+            {
+                DrawEmptyState(listRect, m_WorkingTreeSelected
+                    ? "Working tree clean"
+                    : "This commit touches no file");
+
+                if (commitBoxHeight > 0f)
+                    DrawCommitBox(new Rect(rect.x, listRect.yMax, rect.width, commitBoxHeight));
+                return;
+            }
 
             var view = new Rect(0f, 0f, listRect.width - 16f, Mathf.Max(m_Files.Count * SidebarRow, listRect.height));
             m_FilesScroll = GUI.BeginScrollView(listRect, m_FilesScroll, view);
@@ -1146,11 +1366,11 @@ namespace GitTools.EditorTools
                 else if (row.Contains(Event.current.mousePosition)) EditorGUI.DrawRect(row, GitStyles.RowHover);
 
                 // A letter badge (A/M/D/R/U) says far more at a glance than a coloured dot.
-                var marker = new Rect(row.x + 5f, row.y + 2f, 14f, SidebarRow - 4f);
+                var marker = new Rect(row.x + 6f, row.y + 3f, 17f, SidebarRow - 6f);
                 GitStyles.DrawStatusBadge(marker, entry.Status, entry.StatusColor);
 
                 float buttonsWidth = m_WorkingTreeSelected ? 70f : 0f;
-                var label = new Rect(marker.xMax + 5f, row.y, row.width - marker.xMax - buttonsWidth - 10f, row.height);
+                var label = new Rect(marker.xMax + 6f, row.y, row.width - marker.xMax - buttonsWidth - 12f, row.height);
                 GUI.Label(label, entry.Display, GitStyles.Row);
 
                 if (m_WorkingTreeSelected)
@@ -1192,7 +1412,7 @@ namespace GitTools.EditorTools
 
             GUI.EndScrollView();
 
-            if (m_WorkingTreeSelected)
+            if (commitBoxHeight > 0f)
                 DrawCommitBox(new Rect(rect.x, listRect.yMax, rect.width, commitBoxHeight));
         }
 
@@ -1211,21 +1431,29 @@ namespace GitTools.EditorTools
         {
             EditorGUI.DrawRect(rect, GitStyles.HeaderBackground);
 
+            // In a cramped pane the bulk-staging row is the first thing to go: it has an
+            // equivalent in the per-file buttons, while the message and Commit do not.
+            var compact = rect.height < 92f;
+
             GUILayout.BeginArea(new Rect(rect.x + 6f, rect.y + 4f, rect.width - 12f, rect.height - 8f));
 
-            using (new EditorGUILayout.HorizontalScope())
+            if (!compact)
             {
-                using (new EditorGUI.DisabledScope(!m_Status.HasUnstaged))
+                using (new EditorGUILayout.HorizontalScope())
                 {
-                    if (GUILayout.Button("Stage all", EditorStyles.miniButtonLeft)) Execute("add -A");
-                }
-                using (new EditorGUI.DisabledScope(!m_Status.HasStaged))
-                {
-                    if (GUILayout.Button("Unstage all", EditorStyles.miniButtonRight)) Execute("reset");
+                    using (new EditorGUI.DisabledScope(!m_Status.HasUnstaged))
+                    {
+                        if (GUILayout.Button("Stage all", EditorStyles.miniButtonLeft)) Execute("add -A");
+                    }
+                    using (new EditorGUI.DisabledScope(!m_Status.HasStaged))
+                    {
+                        if (GUILayout.Button("Unstage all", EditorStyles.miniButtonRight)) Execute("reset");
+                    }
                 }
             }
 
-            m_CommitMessage = EditorGUILayout.TextArea(m_CommitMessage, GUILayout.Height(42f));
+            var messageHeight = Mathf.Max(18f, rect.height - (compact ? 34f : 60f));
+            m_CommitMessage = EditorGUILayout.TextArea(m_CommitMessage, GUILayout.Height(messageHeight));
 
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -1245,11 +1473,11 @@ namespace GitTools.EditorTools
 
         void DrawLog(Rect rect)
         {
-            var header = new Rect(rect.x, rect.y, rect.width, 18f);
+            var header = new Rect(rect.x, rect.y, rect.width, 22f);
             EditorGUI.DrawRect(header, GitStyles.HeaderBackground);
 
-            var toggle = new Rect(header.x + 4f, header.y, 220f, header.height);
-            if (GUI.Button(toggle, (m_ShowLog ? GitIcons.Expanded : GitIcons.Collapsed) + "  " + GitIcons.Console + "  Git console (" + m_Log.Count + ")", GitStyles.SectionHeader))
+            var toggle = new Rect(header.x + 4f, header.y, 240f, header.height);
+            if (GUI.Button(toggle, GitStyles.IconLabel("Console", GitIcons.Console, "Git console (" + m_Log.Count + ")"), GitStyles.SectionHeader))
                 m_ShowLog = !m_ShowLog;
 
             if (m_Log.Count > 0)

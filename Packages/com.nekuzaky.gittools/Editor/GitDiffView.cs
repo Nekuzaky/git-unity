@@ -9,7 +9,7 @@ namespace GitTools.EditorTools
     /// </summary>
     public class GitDiffView
     {
-        const float LineHeight = 15f;
+        const float LineHeight = 17f;
 
         string[] m_Lines = new string[0];
         Vector2 m_Scroll;

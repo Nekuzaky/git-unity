@@ -4,6 +4,70 @@ All notable changes to this package are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-09-11
+
+### Added
+
+- Bootstrap Icons artwork, embedded as SVG path data and rasterised through the built-in
+  Vector Graphics module. Icons are rendered white and tinted at draw time, so one texture
+  serves both themes. MIT licensed, see THIRD-PARTY-NOTICES.md.
+- Automatic fallback to the Unicode glyphs when the Vector Graphics module is absent
+  (Unity 2021.3 and 2022), driven by a versionDefine in the asmdef. The package keeps its
+  2021.3 minimum.
+
+### Fixed
+
+- The console could be laid out over the footer in a short window. The console now takes
+  only what is left after the body keeps 40 px, so the panes can never reach past the
+  footer; verified across every window height from the chrome minimum to 1200 px.
+- History columns dropped in the wrong order: the author column disappeared first even
+  though the documentation promised right-to-left. SHA now goes first, then the date, then
+  the author.
+- The commit box vanished without explanation whenever the file pane fell below about
+  102 px, leaving no way to commit. It now keeps a minimum and sheds its bulk-staging row
+  instead, since the per-file buttons cover that.
+- The sidebar toggle claimed to be on while the sidebar was auto-hidden below 660 px.
+  It now reports the real state and is disabled, with a tooltip saying why.
+- Dynamic fonts were recreated on every theme toggle and never destroyed. They are cached
+  per size and survive style rebuilds.
+
+## [0.5.0] - 2026-09-11
+
+### Added
+
+- Footer bar: current branch, commit and change counts, repository path, and a discreet
+  Buy Me a Coffee link that opens only on a click.
+- Sidebar toggle in the toolbar, remembered per user.
+- Overflow menu holding whatever the toolbar drops at narrow widths, so no action ever
+  becomes unreachable.
+- Empty states for the history and the file list instead of blank panes.
+
+### Changed
+
+- Everything is one step larger: 25 px history rows, 22 px sidebar rows, 25 px toolbar,
+  17 px diff lines, and body text at 12 px instead of 11.
+- Footer enlarged to 26 px with 11 px text, and the Buy Me a Coffee link sits in a pill
+  that lights up under the cursor.
+- Real emoji where one exists in the Basic Multilingual Plane: pull and push arrows, the
+  pencil on Changes, the warning sign on conflicts, and the coffee cup in the footer.
+  Emoji outside the BMP stay excluded - IMGUI addresses glyphs per UTF-16 code unit, so a
+  surrogate pair renders as two blanks. Emoji fonts were added to the fallback chain and
+  render monochrome, since IMGUI ignores COLR/CPAL colour layers.
+- The layout is now responsive. The sidebar folds away below 660 px, toolbar buttons lose
+  their labels below 900 px, the search field moves into the overflow menu below 780 px,
+  and the detail pane stacks the file list above the diff below 560 px. History columns
+  drop from the right as the pane narrows: SHA first, then date, then author.
+- Minimum window size lowered from 760x460 to 360x300, so the window can be docked in a
+  narrow column.
+- Pane headers carry a hairline separator, and the commit box shrinks rather than pushing
+  the file list out of view.
+
+### Fixed
+
+- Vertical layout could hand negative heights to the scroll views when the window was
+  shorter than its minimum, which happens with some docking arrangements. The console now
+  collapses first, and the detail pane stops before drawing into a negative rect.
+
 ## [0.4.0] - 2026-09-08
 
 ### Added

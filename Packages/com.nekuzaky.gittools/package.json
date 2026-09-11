@@ -1,6 +1,6 @@
 {
   "name": "com.nekuzaky.gittools",
-  "version": "0.4.0",
+  "version": "0.6.0",
   "displayName": "Git Tools",
   "description": "A Git client embedded in the Unity editor: stage, commit, push, pull, branch and merge without leaving the engine. Opens from Tools > Git.",
   "unity": "2021.3",
